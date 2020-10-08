@@ -1,9 +1,10 @@
+using System;
 using System.Collections.Generic;
 using Lsquared.SmartHome.Zigbee.ZDO;
 
 namespace Lsquared.SmartHome.Zigbee.APP
 {
-    public sealed class NodeEndpoint : ZCL.ICommandListener
+    public sealed class NodeEndpoint : INodeEndpoint, ZCL.ICommandListener
     {
         public ushort ProfileID { get; private set; }
 
@@ -11,9 +12,9 @@ namespace Lsquared.SmartHome.Zigbee.APP
 
         public byte DeviceVersion { get; private set; }
 
-        public IReadOnlyCollection<ZCL.Cluster> InputClusters => _inClusters.Values;
+        public IClusterCollection InClusters { get; }
 
-        public IReadOnlyCollection<ZCL.Cluster> OutputClusters => _outClusters.Values;
+        public IClusterCollection OutClusters { get; }
 
         internal ZigbeeNetwork Network { get; }
 
@@ -23,6 +24,8 @@ namespace Lsquared.SmartHome.Zigbee.APP
 
         internal NodeEndpoint(ZigbeeNetwork network, Node node, Endpoint endpoint)
         {
+            InClusters = new ClusterCollection(/*this*/);
+            OutClusters = new ClusterCollection(/*this*/);
             Network = network;
             Node = node;
             Endpoint = endpoint;

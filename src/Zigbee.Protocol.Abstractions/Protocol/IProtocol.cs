@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading.Tasks;
 using Lsquared.SmartHome.Zigbee.Protocol.Raw;
 
 namespace Lsquared.SmartHome.Zigbee.Protocol
@@ -14,6 +15,8 @@ namespace Lsquared.SmartHome.Zigbee.Protocol
 
         [return: NotNull]
         Func<ICommand, bool> ExpectResponseCode(ushort responseCode);
+
+        ValueTask InitializeAsync(IZigbeeNetwork network);
 
         [return: NotNull]
         ICommand Read(ReadOnlyMemory<byte> memory);

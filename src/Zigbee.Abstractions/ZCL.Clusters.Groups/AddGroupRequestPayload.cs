@@ -1,4 +1,4 @@
-﻿namespace Lsquared.SmartHome.Zigbee.ZCL.Clusters.Groups
+namespace Lsquared.SmartHome.Zigbee.ZCL.Clusters.Groups
 {
-    public sealed record AddGroupRequestPayload(NWK.GroupAddress GrpAddr) : CommandPayload;
+    public sealed record AddGroupRequestPayload(NWK.GroupAddress GrpAddr, string Name) : CommandPayload;
 }

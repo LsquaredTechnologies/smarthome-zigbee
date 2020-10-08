@@ -29,7 +29,16 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zigbee", "src\Zigbee\Zigbee
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zigbee.Protocol.Zigate", "src\Zigbee.Protocol.Zigate\Zigbee.Protocol.Zigate.csproj", "{4CB1539C-4A07-4238-9ED9-CF117A1AC320}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zigbee.Cli", "tests\Zigbee.Cli\Zigbee.Cli.csproj", "{7AB1D740-F86E-48BB-BE2D-E9692E02EA38}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Backports", "src\Backports\Backports.shproj", "{F360D825-3BE8-4DB7-8AD6-C20CA4149424}"
+EndProject
 Global
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		src\Backports\Backports.projitems*{7ab1d740-f86e-48bb-be2d-e9692e02ea38}*SharedItemsImports = 5
+		src\Backports\Backports.projitems*{9367170b-dd1f-47a3-8339-32c8f70f5836}*SharedItemsImports = 5
+		src\Backports\Backports.projitems*{f360d825-3be8-4db7-8ad6-c20ca4149424}*SharedItemsImports = 13
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
@@ -63,6 +72,10 @@ Global
 		{4CB1539C-4A07-4238-9ED9-CF117A1AC320}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4CB1539C-4A07-4238-9ED9-CF117A1AC320}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4CB1539C-4A07-4238-9ED9-CF117A1AC320}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7AB1D740-F86E-48BB-BE2D-E9692E02EA38}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7AB1D740-F86E-48BB-BE2D-E9692E02EA38}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7AB1D740-F86E-48BB-BE2D-E9692E02EA38}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7AB1D740-F86E-48BB-BE2D-E9692E02EA38}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -75,6 +88,8 @@ Global
 		{57A1C5DD-2362-4451-94E5-71D41965A166} = {84773368-C48E-4418-89EF-BB13EC7B2991}
 		{F617ABE8-D38E-4312-9ABE-0B089EB454AB} = {84773368-C48E-4418-89EF-BB13EC7B2991}
 		{4CB1539C-4A07-4238-9ED9-CF117A1AC320} = {84773368-C48E-4418-89EF-BB13EC7B2991}
+		{7AB1D740-F86E-48BB-BE2D-E9692E02EA38} = {1E392620-FC0F-492E-97C0-462001B31EFB}
+		{F360D825-3BE8-4DB7-8AD6-C20CA4149424} = {84773368-C48E-4418-89EF-BB13EC7B2991}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {605E2AA7-C00D-4602-9E53-85F6A9219F21}

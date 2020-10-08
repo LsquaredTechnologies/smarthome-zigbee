@@ -1,4 +1,4 @@
-﻿////using System;
+////using System;
 ////using System.Buffers;
 ////using System.Diagnostics;
 ////using System.Threading.Tasks;
@@ -41,7 +41,7 @@
 ////            Debug.WriteLine($"[DEBUG] Received command with payload:\n{command.Payload}");
 ////            switch (command.Payload)
 ////            {
-////                //case DeviceAnnouncePayload deviceAnnounce:
+////                //case DeviceAnnounceIndicationPayload deviceAnnounce:
 ////                //    //_network.Nodes.Add(deviceAnnounce.ExtAddr, deviceAnnounce.NwkAddr);
 ////                //    break;
 

@@ -1,4 +1,4 @@
-﻿namespace Lsquared.SmartHome.Zigbee.ZDO
+namespace Lsquared.SmartHome.Zigbee.ZDO
 {
     public sealed record RoutingTableEntry : IValue
     {

@@ -1,18 +1,26 @@
-﻿using System;
+using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using Lsquared.SmartHome.Zigbee.APP;
+using Lsquared.SmartHome.Zigbee.Extensibility;
 using Lsquared.SmartHome.Zigbee.Protocol;
 using Lsquared.SmartHome.Zigbee.Protocol.Commands;
 using Lsquared.SmartHome.Zigbee.Transports;
-using Lsquared.SmartHome.Zigbee.ZCL.Clusters.Groups;
+using Lsquared.SmartHome.Zigbee.ZDO;
 
 namespace Lsquared.SmartHome.Zigbee
 {
-    public sealed class ZigbeeNetwork : ICommandSubscriber, IPayloadSubscriber, IPayloadListener, ZCL.ICommandSubscriber, ZCL.ICommandListener, IAsyncDisposable
+    public sealed class ZigbeeNetwork
+        : IZigbeeNetwork
+        , IPacketSubscriber
+        , ICommandSubscriber
+        , IPayloadSubscriber
+        , ZDO.IDeviceSubscriber
+        //, ZDO.ICommandSubscriber
+        , ZCL.ICommandSubscriber
+        , IExtensibleObject<ZigbeeNetwork>
     {
         public IReadOnlyCollection<Node> Nodes => _nodesByNwkAddr.Values;
 
@@ -20,28 +28,42 @@ namespace Lsquared.SmartHome.Zigbee
 
         public Node? GetNode(MAC.Address extAddr) => _nodesByExtAddr.TryGetValue(extAddr, out var node) ? node : node;
 
-        public IReadOnlyCollection<NWK.GroupAddress> Groups => _groups.Keys;
+        ////public IReadOnlyCollection<NWK.GroupAddress> Groups => _groups.Keys;
+
+        public IExtensionCollection<ZigbeeNetwork> Extensions { get; }
 
         public ZigbeeNetwork(ITransport transport, IProtocol protocol)
         {
+            Extensions = new ExtensionCollection<ZigbeeNetwork>(this);
+
             ////_transport = transport; // keep ref to transport
             _protocol = protocol;
             _reader = transport.CreateReader(protocol.PacketExtractor, protocol.PacketEncoder);
             _writer = transport.CreateWriter(protocol.PacketEncoder);
-            (_consumerThread = new Thread(Consume)).Start();
-            _unsubscriberPayloadListener = Subscribe((IPayloadListener)this);
-            _unsubscriberZclCommandListener = Subscribe((ZCL.ICommandListener)this);
+
+            ////_unsubscriberPayloadListener = Subscribe((IPayloadListener)this);
+            //_unsubscriberCommandListener = Subscribe(new CommandPayloadListener(_payloadListeners));
+            //_unsubscriberZclCommandListener = Subscribe(new ZclCommandPayloadListener(_payloadListeners));
+
+            var taskScheduler = new LimitedConcurrencyLevelTaskScheduler(2);
+            var factory = new TaskFactory(taskScheduler);
+            _consumerTask = factory.StartNew(ConsumeAsync);
+
+            //(_consumerThread = new Thread(Consume)).Start();
         }
 
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
             _stoppingCts.Cancel();
-            _consumerThread.Join(2500);
-            if (_consumerThread.IsAlive)
-                _consumerThread.Abort();
-            _unsubscriberPayloadListener.Dispose();
-            _unsubscriberZclCommandListener.Dispose();
-            return default;
+            //_consumerThread.Join(2500);
+            //if (_consumerThread.IsAlive)
+            //    _consumerThread.Abort();
+            await _consumerTask;
+
+            ////_unsubscriberPayloadListener.Dispose();
+            ////_unsubscriberCommandListener.Dispose();
+
+            //return default;
         }
 
         public void RegisterCluster<TCluster>(ushort clusterID) where TCluster : ZCL.Cluster, new() =>
@@ -54,9 +76,11 @@ namespace Lsquared.SmartHome.Zigbee
             return null;
         }
 
-        public async Task<ICommand?> ReceiveAsync(ushort responseCode)
+        #region Receive methods
+
+        public async Task<ICommand?> ReceiveAsync(ushort responseCode, TimeSpan timeout)
         {
-            var listener = new ReceiveCommandListener(_protocol.ExpectResponseCode(responseCode));
+            var listener = new ReceiveCommandListener(timeout, _protocol.ExpectResponseCode(responseCode));
             using var unsubscriber = Subscribe(listener);
             try
             {
@@ -72,6 +96,10 @@ namespace Lsquared.SmartHome.Zigbee
                 return null;
             }
         }
+
+        #endregion
+
+        #region Send methods
 
         public ValueTask SendAsync(ICommandPayload payload)
         {
@@ -95,14 +123,29 @@ namespace Lsquared.SmartHome.Zigbee
             return _writer.WriteAsync(packet);
         }
 
-        public async Task<ICommand?> SendAndWaitAsync(ICommandPayload payload)
+        #endregion
+
+        #region SendAndReceive method
+
+        public async Task<ICommandPayload?> SendAndReceiveAsync(ICommandPayload payload, TimeSpan timeout)
         {
             var request = _protocol.CreateRequest(payload);
             if (request is null) return null;
-            var receiving = ReceiveAsync(request.ExpectedResponseCode);
+            var receiving = ReceiveAsync(request.ExpectedResponseCode, timeout);
             await SendAsync(request);
             var response = await receiving;
-            return response;
+            return response?.Payload;
+        }
+
+        #endregion
+
+        #region Subscribe methods
+
+        public IDisposable Subscribe(IPacketListener listener)
+        {
+            if (!_packetListeners.Contains(listener))
+                _packetListeners.Add(listener);
+            return new Unsubscriber<IPacketListener>(_packetListeners, listener);
         }
 
         public IDisposable Subscribe(ICommandListener listener)
@@ -126,248 +169,142 @@ namespace Lsquared.SmartHome.Zigbee
             return new Unsubscriber<ZCL.ICommandListener>(_zclCommandListeners, listener);
         }
 
-        void IPayloadListener.OnNext(ICommandPayload payload)
+        public IDisposable Subscribe(ZDO.IDeviceListener listener)
         {
-            switch (payload)
+            if (!_deviceAnnounceListeners.Contains(listener))
+                _deviceAnnounceListeners.Add(listener);
+            return new Unsubscriber<ZDO.IDeviceListener>(_deviceAnnounceListeners, listener);
+        }
+
+        #endregion
+
+        private async Task ConsumeAsync()
+        {
+            try
             {
-                case ZDO.GetDevicesResponsePayload p:
+                var stoppingToken = _stoppingCts.Token;
+
+                //await _protocol.InitializeAsync(this);
+
+                var packets = _reader.ReadAsync();
+                await foreach (var packet in packets)
                 {
-                    foreach (var device in p.Devices)
+                    if (stoppingToken.IsCancellationRequested)
+                        break;
+
+                    Debug.WriteLine("[DEBUG] < " + BitConverter.ToString(packet.ToArray()).Replace("-", " "));
+                    foreach (var listener in _packetListeners.ToArray())
+                        listener?.OnNext(packet);
+
+                    var command = _protocol.Read(packet);
+                    if (command.Payload == ICommandPayload.None)
                     {
-                        if (_nodesByExtAddr.TryGetValue(device.ExtAddr, out var node))
+                        // TODO log information?
+                        Debug.WriteLine($"Command is not handled: {command.Header}");
+                        continue;
+                    }
+
+                    Console.WriteLine(command.Payload);
+
+                    foreach (var listener in _commandListeners.ToArray())
+                        listener?.OnNext(command);
+
+                    foreach (var listener in _payloadListeners.ToArray())
+                        listener?.OnNext(command.Payload);
+
+                    if (command.Payload is ZDO.DeviceAnnounceIndicationPayload p1)
+                    {
+                        var node = new Node(this, p1.ExtAddr) with { NwkAddr = p1.NwkAddr };
+                        if (_nodesByExtAddr.ContainsKey(p1.ExtAddr))
+                            _nodesByNwkAddr.Remove(p1.NwkAddr);
+
+                        _nodesByExtAddr.TryAdd(p1.ExtAddr, node);
+                        _nodesByNwkAddr.TryAdd(p1.NwkAddr, node);
+
+                        foreach (var listener in _deviceAnnounceListeners)
+                            listener.OnNext(node);
+                    }
+                    else if (command.Payload is ZDO.GetDevicesResponsePayload p2)
+                    {
+                        foreach (var device in p2.Devices)
                         {
-                            // Existing device
-                            if (node.NwkAddr != device.NwkAddr)
-                            {
-                                node = node with { NwkAddr = device.NwkAddr };
-                                _nodesByNwkAddr.Remove(node.NwkAddr);
-                                _nodesByNwkAddr.Add(device.NwkAddr, node); // replace node
-                                _nodesByExtAddr[device.ExtAddr] = node; // update node
-                            }
-                        }
-                        else
-                        {
-                            // Non-existing device
-                            node = new Node(this, device.ExtAddr)
-                            {
-                                NwkAddr = device.NwkAddr,
-                                PowerInfo = new ZDO.PowerDescriptor((ushort)((byte)(device.PowerSource == 0 ? ZDO.PowerSource.DisposableBattery : ZDO.PowerSource.PermanentMains) << 8))
-                            };
-                            // TODO device.LinkQuality?
-                            _nodesByExtAddr.Add(device.ExtAddr, node);
+                            var node = new Node(this, device.ExtAddr) with { NwkAddr = device.NwkAddr };
+                            if (_nodesByExtAddr.ContainsKey(device.ExtAddr))
+                                _nodesByNwkAddr.Remove(device.NwkAddr);
+
+                            _nodesByExtAddr.TryAdd(device.ExtAddr, node);
                             _nodesByNwkAddr.TryAdd(device.NwkAddr, node);
-                            Update(node);
+
+                            foreach (var listener in _deviceAnnounceListeners)
+                                listener.OnNext(node);
                         }
                     }
-                }
-                break;
-
-                case ZDO.DeviceAnnouncePayload p:
-                {
-                    if (_nodesByExtAddr.TryGetValue(p.ExtAddr, out var node))
+                    else if (command.Payload is DeviceAnnounceIndicationPayload p3)
                     {
-                        // Existing device
-                        if (node.NwkAddr != p.NwkAddr)
+                        if (_nodesByExtAddr.TryGetValue(p3.ExtAddr, out _))
+                            _nodesByNwkAddr.Remove(p3.NwkAddr);
+
+                        var node = new Node(this, p3.ExtAddr) with { NwkAddr = p3.NwkAddr };
+                        _nodesByExtAddr.TryAdd(p3.ExtAddr, node);
+                        _nodesByNwkAddr.TryAdd(p3.NwkAddr, node);
+                    }
+                    else if (command.Payload is GetDevicesResponsePayload p4)
+                    {
+                        foreach (var device in p4.Devices)
                         {
-                            node = node with { NwkAddr = p.NwkAddr };
-                            _nodesByNwkAddr.Remove(node.NwkAddr);
-                            _nodesByNwkAddr.Add(p.NwkAddr, node); // replace node
-                            _nodesByExtAddr[p.ExtAddr] = node; // update node
+                            if (_nodesByExtAddr.TryGetValue(device.ExtAddr, out _))
+                                _nodesByNwkAddr.Remove(device.NwkAddr);
+
+                            var node = new Node(this, device.ExtAddr) with { NwkAddr = device.NwkAddr };
+                            _nodesByExtAddr.TryAdd(device.ExtAddr, node);
+                            _nodesByNwkAddr.TryAdd(device.NwkAddr, node);
                         }
                     }
-                    else
+                    else if (command.Payload is ZCL.ICommand zclCommand)
                     {
-                        // Non-existing device
-                        node = new Node(this, p.ExtAddr)
-                        {
-                            NwkAddr = p.NwkAddr,
-                            Info = new ZDO.NodeDescriptor { MacCapabilities = p.MacCapabilities }
-                        };
-                        _nodesByExtAddr.Add(p.ExtAddr, node);
-                        _nodesByNwkAddr.TryAdd(p.NwkAddr, node);
+                        foreach (var listener in _zclCommandListeners)
+                            listener.OnNext(zclCommand);
                     }
 
-                    Update(node);
+                    if (stoppingToken.IsCancellationRequested)
+                        break;
                 }
-                break;
-
-                case ZDO.GetActiveEndpointsResponsePayload p:
-                {
-                    if (_nodesByNwkAddr.TryGetValue(p.NwkAddr, out var node))
-                    {
-                        node.Register(p.ActiveEndpoints);
-                        foreach (var endpoint in p.ActiveEndpoints)
-                            Enqueue(new ZDO.GetSimpleDescriptorRequestPayload(p.NwkAddr, endpoint));
-                    }
-                }
-                break;
-
-                case ZDO.GetNodeDescriptorResponsePayload p:
-                {
-                    if (_nodesByNwkAddr.TryGetValue(p.NwkAddr, out var node))
-                    {
-                        node.Info = p.NodeDescriptor;
-
-                        var isRouter = (p.NodeDescriptor.MacCapabilities & 0b01000000) == 0b01000000;
-                        if (isRouter)
-                        {
-                            Enqueue(new ZDO.Mgmt.GetRoutingTableRequestPayload(node.NwkAddr, 0));
-                            Enqueue(new ZDO.Mgmt.GetNeighborTableRequestPayload(node.NwkAddr, 0));
-                        }
-                    }
-                }
-                break;
-
-                case ZDO.GetPowerDescriptorResponsePayload p:
-                {
-                    if (_nodesByNwkAddr.TryGetValue(p.NwkAddr, out var node))
-                        node.PowerInfo = p.PowerDescriptor;
-                }
-                break;
-
-                case ZDO.GetUserDescriptorResponsePayload p:
-                {
-                    if (_nodesByNwkAddr.TryGetValue(p.NwkAddr, out var node))
-                        node.UserInfo = p.UserDescriptor;
-                }
-                break;
-
-                case ZDO.GetSimpleDescriptorResponsePayload p:
-                {
-                    if (_nodesByNwkAddr.TryGetValue(p.NwkAddr, out var node))
-                        node.Endpoints[p.SimpleDescriptor.Endpoint].Register(p.SimpleDescriptor);
-                }
-                break;
-
-                case ZDO.GetComplexDescriptorResponsePayload _:
-                {
-                    ////if (_nodesByNwkAddr.TryGetValue(p.NwkAddr, out var node))
-                    ////    node.Register(p.ComplexDescriptor);
-                }
-                break;
-
-                case ZCL.ICommand zclCommand:
-                    foreach (var listener in _zclCommandListeners)
-                        listener.OnNext(zclCommand);
-                    break;
-
-                default:
-                    // ignore
-                    break;
             }
-        }
-
-        private void Update(Node node)
-        {
-            Enqueue(new ZDO.GetActiveEndpointsRequestPayload(node.NwkAddr));
-            //Enqueue(new ZDO.GetPowerDescriptorRequestPayload(node.NwkAddr));
-            //Enqueue(new ZDO.GetNodeDescriptorRequestPayload(node.NwkAddr));
-            //Enqueue(new ZDO.GetUserDescriptorRequestPayload(node.NwkAddr));
-            //Enqueue(new ZDO.GetSimpleDescriptorRequestPayload(node.NwkAddr, 0));
-            ////Enqueue(new ZDO.GetComplexDescriptorRequestPayload(node.NwkAddr));
-
-            var isRouter = (node.Info.MacCapabilities & 0b01000000) == 0b01000000;
-            if (isRouter)
+            catch (Exception ex)
             {
-                Enqueue(new ZDO.Mgmt.GetRoutingTableRequestPayload(node.NwkAddr, 0));
-                Enqueue(new ZDO.Mgmt.GetNeighborTableRequestPayload(node.NwkAddr, 0));
-            }
-
-            Enqueue(new ZCL.Command<GetGroupMembershipRequestPayload>(node.NwkAddr, 1, 1, new GetGroupMembershipRequestPayload()));
-
-            //Enqueue(new ZDO.GetMatchDescriptorRequestPayload(node.NwkAddr, ProfileID, InputClusters, OutputClusters));
-        }
-
-        void ZCL.ICommandListener.OnNext(ZCL.ICommand command)
-        {
-            Node? node = default;
-            var address = command.Address;
-
-            if (address.Mode == AddressMode.Short)
-            {
-                if (command.Payload is Lsquared.SmartHome.Zigbee.ZCL.Clusters.Groups.GetGroupMembershipResponsePayload p)
-                {
-                    foreach (var grpAddr in p.Addresses)
-                        _groups.TryAdd(grpAddr, string.Empty);
-                }
-
-
-                if (!_nodesByNwkAddr.TryGetValue(address.NwkAddr, out node))
-                    Enqueue(new Lsquared.SmartHome.Zigbee.ZDO.GetActiveEndpointsRequestPayload(address.NwkAddr));
-            }
-            else if (address.Mode == AddressMode.IEEE)
-            {
-                if (!_nodesByExtAddr.TryGetValue(address.ExtAddr, out node))
-                    return;
-            }
-
-            if (node is null)
-                return;
-
-            node.GetEndpoint(command.DstEndpoint)?.OnNext(command);
-        }
-
-        private async void Consume(object? obj)
-        {
-            Thread.CurrentThread.Name = "ZigbeeNetwork::Consume";
-            var stoppingToken = _stoppingCts.Token;
-
-            var packets = _reader.ReadAsync();
-            await foreach (var packet in packets)
-            {
-                if (stoppingToken.IsCancellationRequested)
-                    break;
-
-                Debug.WriteLine("[DEBUG] < " + BitConverter.ToString(packet.ToArray()).Replace("-", " "));
-                foreach (var listener in _commandListeners.ToArray())
-                    listener?.OnNext(packet);
-
-                var command = _protocol.Read(packet);
-                if (command.Payload == ICommandPayload.None)
-                {
-                    // TODO log information?
-                    Debug.WriteLine($"Command is not handled: {command.Header}");
-                    continue;
-                }
-
-                Console.WriteLine(command.Payload);
-
-                foreach (var listener in _commandListeners.ToArray())
-                    listener?.OnNext(command);
-
-                foreach (var listener in _payloadListeners.ToArray())
-                    listener?.OnNext(command.Payload);
-
-                if (stoppingToken.IsCancellationRequested)
-                    break;
+                _ = ex;
             }
         }
 
-        private async void Enqueue(ICommandPayload payload)
-        {
-            var request = _protocol.CreateRequest(payload);
-            if (request is null) return;
-            var receiving = ReceiveAsync(request.ExpectedResponseCode);
-            await SendAsync(request);
-            var response = await receiving;
-            _ = response;
-        }
+        #region Fields
 
         private readonly CancellationTokenSource _stoppingCts = new();
+
+        private readonly List<IPacketListener> _packetListeners = new();
         private readonly List<ICommandListener> _commandListeners = new();
         private readonly List<IPayloadListener> _payloadListeners = new();
+        private readonly List<ZDO.IDeviceListener> _deviceAnnounceListeners = new();
         private readonly List<ZCL.ICommandListener> _zclCommandListeners = new();
+
         private readonly Dictionary<MAC.Address, Node> _nodesByExtAddr = new();
         private readonly Dictionary<NWK.Address, Node> _nodesByNwkAddr = new();
-        private readonly Dictionary<NWK.GroupAddress, string> _groups = new();
+        ////private readonly Dictionary<NWK.GroupAddress, string> _groups = new();
+
         ////private readonly ITransport _transport;
         private readonly IProtocol _protocol;
         private readonly ITransportReader _reader;
         private readonly ITransportWriter _writer;
-        private readonly Thread _consumerThread;
-        private readonly IDisposable _unsubscriberPayloadListener;
-        private readonly IDisposable _unsubscriberZclCommandListener;
+        //private readonly Thread _consumerThread;
+        private readonly Task _consumerTask;
+
+        ////private readonly IDisposable _unsubscriberPayloadListener;
+        //private readonly IDisposable _unsubscriberCommandListener;
+
         private readonly Dictionary<ushort, Func<ZCL.Cluster>> _registeredClusters = new();
+
+        #endregion
+
+        #region Nested types
 
         private readonly struct Unsubscriber<TListener> : IDisposable
         {
@@ -384,41 +321,184 @@ namespace Lsquared.SmartHome.Zigbee
             private readonly TListener _listener;
         }
 
-        private sealed class ReceiveCommandListener : ICommandListener
-        {
-            public TaskCompletionSource<ICommand> Result { get; private set; }
-
-            public ReceiveCommandListener(Func<ICommand, bool> predicate)
-            {
-                _predicate = predicate;
-                Result = new TaskCompletionSource<ICommand>();
-                _cts = new(WaitTimeoutInMilliseconds);
-                _cts.Token.Register(() =>
-                {
-                    if (!Result.Task.IsCompleted)
-                        Result.TrySetCanceled();
-                });
-            }
-
-            void ICommandListener.OnNext(ReadOnlyMemory<byte> raw)
-            {
-                // no op, but needed by contract
-            }
-
-            void ICommandListener.OnNext(ICommand command)
-            {
-                if (_predicate(command))
-                    Result.TrySetResult(command);
-            }
-
-#if DEBUG
-            private static readonly int WaitTimeoutInMilliseconds = 500;
-#else
-            private static readonly int WaitTimeoutInMilliseconds = 500;
-#endif
-
-            private readonly Func<ICommand, bool> _predicate;
-            private readonly CancellationTokenSource _cts;
-        }
+        #endregion
     }
 }
+
+//private void Update(Node node)
+//{
+//    Enqueue(new ZDO.GetActiveEndpointsRequestPayload(node.NwkAddr));
+//    //Enqueue(new ZDO.GetPowerDescriptorRequestPayload(node.NwkAddr));
+//    //Enqueue(new ZDO.GetNodeDescriptorRequestPayload(node.NwkAddr));
+//    //Enqueue(new ZDO.GetUserDescriptorRequestPayload(node.NwkAddr));
+//    //Enqueue(new ZDO.GetSimpleDescriptorRequestPayload(node.NwkAddr, 0));
+//    ////Enqueue(new ZDO.GetComplexDescriptorRequestPayload(node.NwkAddr));
+
+//    var isRouter = (node.Info.MacCapabilities & 0b01000000) == 0b01000000;
+//    if (isRouter)
+//    {
+//        Enqueue(new ZDO.Mgmt.GetRoutingTableRequestPayload(node.NwkAddr, 0));
+//        Enqueue(new ZDO.Mgmt.GetNeighborTableRequestPayload(node.NwkAddr, 0));
+//    }
+
+//    Enqueue(new ZCL.Command<GetGroupMembershipRequestPayload>(node.NwkAddr, 1, 1, new GetGroupMembershipRequestPayload()));
+
+//    //Enqueue(new ZDO.GetMatchDescriptorRequestPayload(node.NwkAddr, ProfileID, InputClusters, OutputClusters));
+//}
+
+
+
+
+////void ZCL.ICommandListener.OnNext(ZCL.ICommand command)
+////{
+////    Node? node = default;
+////    var address = command.Address;
+
+////    if (address.Mode == AddressMode.Short)
+////    {
+////        if (command.Payload is Lsquared.SmartHome.Zigbee.ZCL.Clusters.Groups.GetGroupMembershipResponsePayload p)
+////        {
+////            foreach (var grpAddr in p.Addresses)
+////                _groups.TryAdd(grpAddr, string.Empty);
+////        }
+
+
+////        if (!_nodesByNwkAddr.TryGetValue(address.NwkAddr, out node))
+////            Enqueue(new Lsquared.SmartHome.Zigbee.ZDO.GetActiveEndpointsRequestPayload(address.NwkAddr));
+////    }
+////    else if (address.Mode == AddressMode.IEEE)
+////    {
+////        if (!_nodesByExtAddr.TryGetValue(address.ExtAddr, out node))
+////            return;
+////    }
+
+////    if (node is null)
+////        return;
+
+////    node.GetEndpoint(command.DstEndpoint)?.OnNext(command);
+////}
+
+//void IPayloadListener.OnNext(ICommandPayload payload)
+//{
+//    switch (payload)
+//    {
+//        case ZDO.GetDevicesResponsePayload p:
+//        {
+//            foreach (var device in p.Devices)
+//            {
+//                if (_nodesByExtAddr.TryGetValue(device.ExtAddr, out var node))
+//                {
+//                    // Existing device
+//                    if (node.NwkAddr != device.NwkAddr)
+//                    {
+//                        node = node with { NwkAddr = device.NwkAddr };
+//                        _nodesByNwkAddr.Remove(node.NwkAddr);
+//                        _nodesByNwkAddr.Add(device.NwkAddr, node); // replace node
+//                        _nodesByExtAddr[device.ExtAddr] = node; // update node
+//                    }
+//                }
+//                else
+//                {
+//                    // Non-existing device
+//                    node = new Node(this, device.ExtAddr)
+//                    {
+//                        NwkAddr = device.NwkAddr,
+//                        PowerInfo = new ZDO.PowerDescriptor((ushort)((byte)(device.PowerSource == 0 ? ZDO.PowerSource.DisposableBattery : ZDO.PowerSource.PermanentMains) << 8))
+//                    };
+//                    // TODO device.LinkQuality?
+//                    _nodesByExtAddr.Add(device.ExtAddr, node);
+//                    _nodesByNwkAddr.TryAdd(device.NwkAddr, node);
+//                    Update(node);
+//                }
+//            }
+//        }
+//        break;
+
+//        case ZDO.DeviceAnnounceIndicationPayload p:
+//        {
+//            if (_nodesByExtAddr.TryGetValue(p.ExtAddr, out var node))
+//            {
+//                // Existing device
+//                if (node.NwkAddr != p.NwkAddr)
+//                {
+//                    node = node with { NwkAddr = p.NwkAddr };
+//                    _nodesByNwkAddr.Remove(node.NwkAddr);
+//                    _nodesByNwkAddr.Add(p.NwkAddr, node); // replace node
+//                    _nodesByExtAddr[p.ExtAddr] = node; // update node
+//                }
+//            }
+//            else
+//            {
+//                // Non-existing device
+//                node = new Node(this, p.ExtAddr)
+//                {
+//                    NwkAddr = p.NwkAddr,
+//                    Info = new ZDO.NodeDescriptor { MacCapabilities = p.MacCapabilities }
+//                };
+//                _nodesByExtAddr.Add(p.ExtAddr, node);
+//                _nodesByNwkAddr.TryAdd(p.NwkAddr, node);
+//            }
+
+//            Update(node);
+//        }
+//        break;
+
+//        case ZDO.GetActiveEndpointsResponsePayload p:
+//        {
+//            if (_nodesByNwkAddr.TryGetValue(p.NwkAddr, out var node))
+//            {
+//                node.Register(p.ActiveEndpoints);
+//                foreach (var endpoint in p.ActiveEndpoints)
+//                    Enqueue(new ZDO.GetSimpleDescriptorRequestPayload(p.NwkAddr, endpoint));
+//            }
+//        }
+//        break;
+
+//        case ZDO.GetNodeDescriptorResponsePayload p:
+//        {
+//        }
+//        break;
+
+//        case ZDO.GetPowerDescriptorResponsePayload p:
+//        {
+//        }
+//        break;
+
+//        case ZDO.GetUserDescriptorResponsePayload p:
+//        {
+//        }
+//        break;
+
+//        case ZDO.GetSimpleDescriptorResponsePayload p:
+//        {
+//        }
+//        break;
+
+//        case ZDO.GetComplexDescriptorResponsePayload _:
+//        {
+//            ////if (_nodesByNwkAddr.TryGetValue(p.NwkAddr, out var node))
+//            ////    node.Register(p.ComplexDescriptor);
+//        }
+//        break;
+
+//        case ZCL.ICommand zclCommand:
+//            foreach (var listener in _zclCommandListeners)
+//                listener.OnNext(zclCommand);
+//            break;
+
+//        default:
+//            // ignore
+//            break;
+//    }
+//}
+
+
+//private async void Enqueue(ICommandPayload payload)
+//{
+//    var request = _protocol.CreateRequest(payload);
+//    if (request is null) return;
+//    var receiving = ReceiveAsync(request.ExpectedResponseCode);
+//    await SendAsync(request);
+//    var response = await receiving;
+//    _ = response;
+//}

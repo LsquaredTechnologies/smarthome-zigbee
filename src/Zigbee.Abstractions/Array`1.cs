@@ -8,11 +8,11 @@ namespace Lsquared.SmartHome.Zigbee
     {
         public int Count => _items.Count;
 
+        public T this[int index] => _items[index];
+
         public Array() => _items = new List<T>();
 
         public Array(IEnumerable<T> list) => _items = list.ToList();
-
-        public Array(IReadOnlyCollection<T> list) => _items = list;
 
         public Array(IReadOnlyList<T> list) => _items = list;
 
@@ -23,6 +23,6 @@ namespace Lsquared.SmartHome.Zigbee
         public override string ToString() =>
             "[" + string.Join(",", _items.Select(e => e!.ToString())) + "]";
 
-        private readonly IReadOnlyCollection<T> _items;
+        private readonly IReadOnlyList<T> _items;
     }
 }

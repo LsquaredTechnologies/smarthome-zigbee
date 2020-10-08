@@ -1,4 +1,4 @@
-﻿using Lsquared.SmartHome.Zigbee.Protocol.Zigate;
+using Lsquared.SmartHome.Zigbee.Protocol.Zigate;
 
 namespace Lsquared.SmartHome.Zigbee.ZDO
 {

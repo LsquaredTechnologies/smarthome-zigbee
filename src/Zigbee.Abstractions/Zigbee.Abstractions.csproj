@@ -8,4 +8,6 @@
     <NoWarn>1701;1702;IDE1006</NoWarn>
   </PropertyGroup>
 
+  <Import Project="..\Backports\Backports.projitems" Label="Shared" />
+
 </Project>

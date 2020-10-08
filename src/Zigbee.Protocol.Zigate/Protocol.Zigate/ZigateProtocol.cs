@@ -1,6 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Text;
+using System.Threading.Tasks;
 using Lsquared.SmartHome.Buffers;
 using Lsquared.SmartHome.Zigbee.Protocol.Raw;
 using static Lsquared.Extensions.Functional;
@@ -9,9 +11,20 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
 {
     public sealed class ZigateProtocol : IProtocol
     {
+        public ushort ZigateVersion { get; private set; }
+
         public IPacketEncoder PacketEncoder { get; } = new ZigatePacketEncoder();
 
         public IPacketExtractor PacketExtractor { get; } = new ZigatePacketExtractor();
+
+        public async ValueTask InitializeAsync(IZigbeeNetwork network)
+        {
+            var versionResponsePayload = await network.SendAndReceiveAsync<GetVersionResponsePayload>(new GetVersionRequestPayload());
+            if (versionResponsePayload is not null)
+                ZigateVersion = versionResponsePayload.SdkVersion;
+
+            // TODO add more initialization...
+        }
 
         public Request? CreateRequest(ICommandPayload payload) => payload switch
         {
@@ -21,6 +34,7 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
             ZDO.GetActiveEndpointsRequestPayload p => new ZDO.GetActiveEndpointsRequest(p),
             ZDO.GetComplexDescriptorRequestPayload p => new ZDO.GetComplexDescriptorRequest(p),
             ZDO.GetExtendedAddressRequestPayload p => new ZDO.GetExtendedAddressRequest(p),
+            ZDO.GetNwkAddressRequestPayload p => new ZDO.GetNwkAddressRequest(p),
             ZDO.GetMatchDescriptorRequestPayload p => new ZDO.GetMatchDescriptorRequest(p),
             ZDO.GetNetworkAddressRequestPayload p => new ZDO.GetNetworkAddressRequest(p),
             ZDO.GetNodeDescriptorRequestPayload p => new ZDO.GetNodeDescriptorRequest(p),
@@ -101,7 +115,7 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
 
         private static ICommandPayload ReadPayload(ushort command, ref ReadOnlySpan<byte> span, ref int offset) => command switch
         {
-            0x004D => ReadDeviceAnnouncePayload(ref span, ref offset),
+            0x004D => ReadDeviceAnnounceIndicationPayload(ref span, ref offset),
             0x8000 => ReadStatusPayload(ref span, ref offset),
             //0x8002 => ReadDataIndicationPayload(ref span, ref offset),
             0x8009 => ReadGetNetworkStateResponsePayload(ref span, ref offset),
@@ -112,6 +126,10 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
             0x8017 => ReadGetTimeResponsePayload(ref span, ref offset),
             0x8024 => ReadNetworkStartedResponsePayload(ref span, ref offset),
             ////0x8035 => PdmEventPayload.Read(ref span, ref offset),
+
+            0x8040 => ReadGetNwkAddressResponsePayload(ref span, ref offset),
+            0x8041 => ReadGetExtendedAddressResponsePayload(ref span, ref offset),
+
             0x8042 => ReadGetNodeDescriptorResponsePayload(ref span, ref offset),
             0x8043 => ReadGetSimpleDescriptorResponsePayload(ref span, ref offset),
             0x8044 => ReadGetPowerDescriptorResponsePayload(ref span, ref offset),
@@ -130,8 +148,8 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
             _ => ICommandPayload.None
         };
 
-        private static ZDO.DeviceAnnouncePayload ReadDeviceAnnouncePayload(ref ReadOnlySpan<byte> span, ref int offset) =>
-            new ZDO.DeviceAnnouncePayload(
+        private static ZDO.DeviceAnnounceIndicationPayload ReadDeviceAnnounceIndicationPayload(ref ReadOnlySpan<byte> span, ref int offset) =>
+            new ZDO.DeviceAnnounceIndicationPayload(
                 BigEndianBinary.ReadUInt16(ref span, ref offset),
                 BigEndianBinary.ReadUInt64(ref span, ref offset),
                 BigEndianBinary.ReadByte(ref span, ref offset),
@@ -190,6 +208,30 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
                 BigEndianBinary.ReadUInt16(ref span, ref offset),
                 BigEndianBinary.ReadUInt64(ref span, ref offset),
                 (NWK.Channel)BigEndianBinary.ReadByte(ref span, ref offset));
+
+        private static ZDO.GetNwkAddressResponsePayload ReadGetNwkAddressResponsePayload(ref ReadOnlySpan<byte> span, ref int offset)
+        {
+            BigEndianBinary.ReadByte(ref span, ref offset); // Seq
+            return new ZDO.GetNwkAddressResponsePayload(
+                BigEndianBinary.ReadByte(ref span, ref offset),
+                BigEndianBinary.ReadUInt64(ref span, ref offset),
+                BigEndianBinary.ReadUInt16(ref span, ref offset),
+                BigEndianBinary.ReadByte(ref span, ref offset),
+                BigEndianBinary.ReadByte(ref span, ref offset));
+            // TODO add device list...
+        }
+
+        private static ZDO.GetExtendedAddressResponsePayload ReadGetExtendedAddressResponsePayload(ref ReadOnlySpan<byte> span, ref int offset)
+        {
+            BigEndianBinary.ReadByte(ref span, ref offset); // Seq
+            return new ZDO.GetExtendedAddressResponsePayload(
+                BigEndianBinary.ReadByte(ref span, ref offset),
+                BigEndianBinary.ReadUInt64(ref span, ref offset),
+                BigEndianBinary.ReadUInt16(ref span, ref offset),
+                BigEndianBinary.ReadByte(ref span, ref offset),
+                BigEndianBinary.ReadByte(ref span, ref offset));
+            // TODO add device list..
+        }
 
         private static ZDO.GetNodeDescriptorResponsePayload ReadGetNodeDescriptorResponsePayload(ref ReadOnlySpan<byte> span, ref int offset)
         {
@@ -461,13 +503,15 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
             SetTimeRequestPayload p => Write(p, ref span, ref offset, ref checksum),
 
             // ZDO
-            ZDO.DeviceAnnouncePayload p => Write(p, ref span, ref offset, ref checksum),
+            ZDO.DeviceAnnounceIndicationPayload p => Write(p, ref span, ref offset, ref checksum),
             ZDO.GetActiveEndpointsRequestPayload p => Write(p, ref span, ref offset, ref checksum),
             ZDO.GetActiveEndpointsResponsePayload p => Write(p, ref span, ref offset, ref checksum),
             ZDO.GetComplexDescriptorRequestPayload p => Write(p, ref span, ref offset, ref checksum),
             ZDO.GetComplexDescriptorResponsePayload p => Write(p, ref span, ref offset, ref checksum),
             ZDO.GetExtendedAddressRequestPayload p => Write(p, ref span, ref offset, ref checksum),
             ZDO.GetExtendedAddressResponsePayload p => Write(p, ref span, ref offset, ref checksum),
+            ZDO.GetNwkAddressRequestPayload p => Write(p, ref span, ref offset, ref checksum),
+            ZDO.GetNwkAddressResponsePayload p => Write(p, ref span, ref offset, ref checksum),
             ZDO.GetMatchDescriptorRequestPayload p => Write(p, ref span, ref offset, ref checksum),
             ZDO.GetMatchDescriptorResponsePayload p => Write(p, ref span, ref offset, ref checksum),
             ZDO.GetNetworkAddressRequestPayload p => Write(p, ref span, ref offset, ref checksum),
@@ -535,7 +579,7 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
             return default;
         }
 
-        private static Unit Write(ZDO.DeviceAnnouncePayload payload, ref Span<byte> span, ref int offset, ref byte checksum)
+        private static Unit Write(ZDO.DeviceAnnounceIndicationPayload payload, ref Span<byte> span, ref int offset, ref byte checksum)
         {
             BigEndianBinary.Write((ushort)payload.NwkAddr, ref span, ref offset, ref checksum);
             BigEndianBinary.Write((ulong)payload.ExtAddr, ref span, ref offset, ref checksum);
@@ -588,8 +632,28 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
             BigEndianBinary.Write((ulong)payload.ExtAddr, ref span, ref offset, ref checksum);
             BigEndianBinary.Write(payload.Count, ref span, ref offset, ref checksum);
             BigEndianBinary.Write(payload.StartIndex, ref span, ref offset, ref checksum);
-            foreach (var item in payload.NwkAddresses)
-                Write(item, ref span, ref offset, ref checksum);
+            ////foreach (var item in payload.NwkAddresses)
+            ////    Write(item, ref span, ref offset, ref checksum);
+            return default;
+        }
+
+        private static Unit Write(ZDO.GetNwkAddressRequestPayload payload, ref Span<byte> span, ref int offset, ref byte checksum)
+        {
+            BigEndianBinary.Write((ulong)payload.ExtAddr, ref span, ref offset, ref checksum);
+            BigEndianBinary.Write(payload.RequestType, ref span, ref offset, ref checksum);
+            BigEndianBinary.Write(payload.StartIndex, ref span, ref offset, ref checksum);
+            return default;
+        }
+
+        private static Unit Write(ZDO.GetNwkAddressResponsePayload payload, ref Span<byte> span, ref int offset, ref byte checksum)
+        {
+            BigEndianBinary.Write(payload.Status, ref span, ref offset, ref checksum);
+            BigEndianBinary.Write((ushort)payload.NwkAddr, ref span, ref offset, ref checksum);
+            BigEndianBinary.Write((ulong)payload.ExtAddr, ref span, ref offset, ref checksum);
+            BigEndianBinary.Write(payload.Count, ref span, ref offset, ref checksum);
+            BigEndianBinary.Write(payload.StartIndex, ref span, ref offset, ref checksum);
+            ////foreach (var item in payload.NwkAddresses)
+            ////    Write(item, ref span, ref offset, ref checksum);
             return default;
         }
 
@@ -707,9 +771,9 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
         private static Unit Write(ZDO.Mgmt.GetRoutingTableResponsePayload payload, ref Span<byte> span, ref int offset, ref byte checksum)
         {
             BigEndianBinary.Write(payload.Status, ref span, ref offset, ref checksum);
-            BigEndianBinary.Write(payload.RoutingTableEntryTotalCount, ref span, ref offset, ref checksum);
+            BigEndianBinary.Write(payload.Capacity, ref span, ref offset, ref checksum);
             BigEndianBinary.Write(payload.StartIndex, ref span, ref offset, ref checksum);
-            BigEndianBinary.Write(payload.RoutingTableEntryCount, ref span, ref offset, ref checksum);
+            BigEndianBinary.Write((byte)payload.RoutingTableEntries.Count, ref span, ref offset, ref checksum);
             foreach (var item in payload.RoutingTableEntries)
                 Write(item, ref span, ref offset, ref checksum);
             return default;
@@ -725,7 +789,7 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
         private static Unit Write(ZDO.Mgmt.GetNeighborTableResponsePayload payload, ref Span<byte> span, ref int offset, ref byte checksum)
         {
             BigEndianBinary.Write(payload.Status, ref span, ref offset, ref checksum);
-            BigEndianBinary.Write(payload.NeighborTableEntryTotalCount, ref span, ref offset, ref checksum);
+            BigEndianBinary.Write(payload.Capacity, ref span, ref offset, ref checksum);
             BigEndianBinary.Write(payload.StartIndex, ref span, ref offset, ref checksum);
             Write(payload.NeighborTableEntries, ref span, ref offset, ref checksum);
             return default;
@@ -791,7 +855,7 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
                 NoCommandPayload => default,
                 IArrayValue p => Write(p, ref span, ref offset, ref checksum),
                 ZCL.Clusters.OnOff.OnOffRequestPayload p => Write((byte)p.OnOff, ref span, ref offset, ref checksum),
-                ZCL.Clusters.Groups.AddGroupRequestPayload p => Write(p.GrpAddr, ref span, ref offset, ref checksum),
+                ZCL.Clusters.Groups.AddGroupRequestPayload p => Write(p, ref span, ref offset, ref checksum),
                 ZCL.Clusters.Groups.GetGroupMembershipRequestPayload p => Write(p, ref span, ref offset, ref checksum),
                 ZCL.Clusters.Level.MoveLevelRequestPayload p => Write(p, ref span, ref offset, ref checksum),
                 ZCL.Clusters.Level.MoveToLevelRequestTimedPayload p => Write(p, ref span, ref offset, ref checksum),
@@ -831,6 +895,16 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
         private static Unit Write(ZCL.Clusters.Groups.AddGroupRequestPayload payload, ref Span<byte> span, ref int offset, ref byte checksum)
         {
             BigEndianBinary.Write((ushort)payload.GrpAddr, ref span, ref offset, ref checksum);
+            BigEndianBinary.Write((byte)payload.Name.Length, ref span, ref offset, ref checksum);
+            BigEndianBinary.Write((byte)payload.Name.Length, ref span, ref offset, ref checksum);
+            Write(Encoding.ASCII.GetBytes(payload.Name), ref span, ref offset, ref checksum);
+            return default;
+        }
+
+        private static Unit Write(byte[] bytes, ref Span<byte> span, ref int offset, ref byte checksum)
+        {
+            foreach (var b in bytes)
+                BigEndianBinary.Write(b, ref span, ref offset, ref checksum);
             return default;
         }
 

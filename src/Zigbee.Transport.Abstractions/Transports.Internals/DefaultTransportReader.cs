@@ -59,14 +59,18 @@ namespace Lsquared.SmartHome.Zigbee.Transports.Internals
                 try
                 {
                     Debug.WriteLine("[DEBUG] Reading packet...");
-                    var read = await _reader.ReadAsync(stoppingToken);
+                    var timeoutCts = new CancellationTokenSource(500);
+                    var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, timeoutCts.Token);
+                    
+                    var read = await _reader.ReadAsync(cts.Token);
+                    
                     buffer = read.Buffer;
                     if (buffer.IsEmpty && read.IsCompleted)
                         break; // exit loop
                 }
                 catch (OperationCanceledException)
                 {
-                    break; // simply exit loop
+                    // ignore and continue
                 }
             }
             Debug.WriteLine("[DEBUG] TransportPacketReader::ReadPacketsAsync terminates.");

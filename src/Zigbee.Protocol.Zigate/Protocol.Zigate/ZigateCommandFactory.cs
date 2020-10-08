@@ -26,7 +26,7 @@
 
 ////        private static ICommandPayload ReadPayload(ushort command, ref ReadOnlySpan<byte> span, ref int offset) => command switch
 ////        {
-////            //0x004D => DeviceAnnouncePayload.Read(ref span, ref offset),
+////            //0x004D => DeviceAnnounceIndicationPayload.Read(ref span, ref offset),
 ////            //0x8000 => StatusPayload.Read(ref span, ref offset),
 ////            //0x8002 => DataIndicationPayload.Read(ref span, ref offset),
 ////            //0x8009 => GetNetworkStateResponsePayload.Read(ref span, ref offset),
