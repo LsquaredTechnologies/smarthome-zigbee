@@ -1,0 +1,68 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30524.135
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{84773368-C48E-4418-89EF-BB13EC7B2991}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{1E392620-FC0F-492E-97C0-462001B31EFB}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zigbee.Transport.Abstractions", "src\Zigbee.Transport.Abstractions\Zigbee.Transport.Abstractions.csproj", "{7D0C40BC-A8F3-47BA-8DB7-26455A0386D4}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zigbee.Abstractions", "src\Zigbee.Abstractions\Zigbee.Abstractions.csproj", "{9367170B-DD1F-47A3-8339-32C8F70F5836}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zigbee.Protocol.Abstractions", "src\Zigbee.Protocol.Abstractions\Zigbee.Protocol.Abstractions.csproj", "{666BC562-A585-4DBC-B896-AF6CD6F2023F}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zigbee.Transport.Serial", "src\Zigbee.Transport.Serial\Zigbee.Transport.Serial.csproj", "{B5B13046-8EE2-4386-8F7A-A29DB786CC89}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Extensions.Functional", "src\Functional\Extensions.Functional.csproj", "{57A1C5DD-2362-4451-94E5-71D41965A166}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{35FAD85A-DB10-4A09-B27E-27FA048ED1D3}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		.gitignore = .gitignore
+		LICENSE = LICENSE
+		README.md = README.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7D0C40BC-A8F3-47BA-8DB7-26455A0386D4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7D0C40BC-A8F3-47BA-8DB7-26455A0386D4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7D0C40BC-A8F3-47BA-8DB7-26455A0386D4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7D0C40BC-A8F3-47BA-8DB7-26455A0386D4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9367170B-DD1F-47A3-8339-32C8F70F5836}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9367170B-DD1F-47A3-8339-32C8F70F5836}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9367170B-DD1F-47A3-8339-32C8F70F5836}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9367170B-DD1F-47A3-8339-32C8F70F5836}.Release|Any CPU.Build.0 = Release|Any CPU
+		{666BC562-A585-4DBC-B896-AF6CD6F2023F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{666BC562-A585-4DBC-B896-AF6CD6F2023F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{666BC562-A585-4DBC-B896-AF6CD6F2023F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{666BC562-A585-4DBC-B896-AF6CD6F2023F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B5B13046-8EE2-4386-8F7A-A29DB786CC89}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5B13046-8EE2-4386-8F7A-A29DB786CC89}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5B13046-8EE2-4386-8F7A-A29DB786CC89}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5B13046-8EE2-4386-8F7A-A29DB786CC89}.Release|Any CPU.Build.0 = Release|Any CPU
+		{57A1C5DD-2362-4451-94E5-71D41965A166}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{57A1C5DD-2362-4451-94E5-71D41965A166}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{57A1C5DD-2362-4451-94E5-71D41965A166}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{57A1C5DD-2362-4451-94E5-71D41965A166}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{7D0C40BC-A8F3-47BA-8DB7-26455A0386D4} = {84773368-C48E-4418-89EF-BB13EC7B2991}
+		{9367170B-DD1F-47A3-8339-32C8F70F5836} = {84773368-C48E-4418-89EF-BB13EC7B2991}
+		{666BC562-A585-4DBC-B896-AF6CD6F2023F} = {84773368-C48E-4418-89EF-BB13EC7B2991}
+		{B5B13046-8EE2-4386-8F7A-A29DB786CC89} = {84773368-C48E-4418-89EF-BB13EC7B2991}
+		{57A1C5DD-2362-4451-94E5-71D41965A166} = {84773368-C48E-4418-89EF-BB13EC7B2991}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {605E2AA7-C00D-4602-9E53-85F6A9219F21}
+	EndGlobalSection
+EndGlobal
