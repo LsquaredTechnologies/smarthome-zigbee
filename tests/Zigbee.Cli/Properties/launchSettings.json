@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Zigbee.Cli": {
+      "commandName": "Project",
+      "nativeDebugging": false
+    }
+  }
+}
