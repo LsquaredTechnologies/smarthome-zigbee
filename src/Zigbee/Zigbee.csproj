@@ -8,4 +8,10 @@
     <NoWarn>1701;1702;IDE1006</NoWarn>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Zigbee.Abstractions\Zigbee.Abstractions.csproj" />
+    <ProjectReference Include="..\Zigbee.Protocol.Abstractions\Zigbee.Protocol.Abstractions.csproj" />
+    <ProjectReference Include="..\Zigbee.Transport.Abstractions\Zigbee.Transport.Abstractions.csproj" />
+  </ItemGroup>
+
 </Project>

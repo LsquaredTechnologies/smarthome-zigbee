@@ -25,6 +25,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.md = README.md
 	EndProjectSection
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zigbee", "src\Zigbee\Zigbee.csproj", "{F617ABE8-D38E-4312-9ABE-0B089EB454AB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,6 +53,10 @@ Global
 		{57A1C5DD-2362-4451-94E5-71D41965A166}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{57A1C5DD-2362-4451-94E5-71D41965A166}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{57A1C5DD-2362-4451-94E5-71D41965A166}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F617ABE8-D38E-4312-9ABE-0B089EB454AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F617ABE8-D38E-4312-9ABE-0B089EB454AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F617ABE8-D38E-4312-9ABE-0B089EB454AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F617ABE8-D38E-4312-9ABE-0B089EB454AB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -61,6 +67,7 @@ Global
 		{666BC562-A585-4DBC-B896-AF6CD6F2023F} = {84773368-C48E-4418-89EF-BB13EC7B2991}
 		{B5B13046-8EE2-4386-8F7A-A29DB786CC89} = {84773368-C48E-4418-89EF-BB13EC7B2991}
 		{57A1C5DD-2362-4451-94E5-71D41965A166} = {84773368-C48E-4418-89EF-BB13EC7B2991}
+		{F617ABE8-D38E-4312-9ABE-0B089EB454AB} = {84773368-C48E-4418-89EF-BB13EC7B2991}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {605E2AA7-C00D-4602-9E53-85F6A9219F21}
