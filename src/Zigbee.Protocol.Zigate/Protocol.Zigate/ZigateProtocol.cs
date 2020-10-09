@@ -159,7 +159,7 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
             0x8062 => ReadGetGroupMembershipResponsePayload(ref span, ref offset),
             0x8100 => ReadReadSingleAttributeResponsePayload(ref span, ref offset),
             0x8102 => ReadReportSingleAttributeResponsePayload(ref span, ref offset),
-            _ => ICommandPayload.None // Do not thrown; instead, returns an empty instance
+            _ => ICommandPayload.None // Do not throw; instead, returns an empty instance
         };
 
         private static Array<T> ReadArray<T>(ref ReadOnlySpan<byte> span, ref int offset, Reader<T> reader)
