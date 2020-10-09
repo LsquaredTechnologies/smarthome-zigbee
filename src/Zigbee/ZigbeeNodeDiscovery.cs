@@ -63,17 +63,20 @@ namespace Lsquared.SmartHome.Zigbee
         {
             var task = payload switch
             {
-                ZDO.GetDevicesResponsePayload p => HandleAsync(p),
+                // ZDO: Device Discovery
                 ZDO.DeviceAnnounceIndicationPayload p => HandleAsync(p),
-                ZDO.Mgmt.GetNeighborTableResponsePayload p => HandleAsync(p),
-                ZDO.Mgmt.GetRoutingTableResponsePayload p => HandleAsync(p),
+                ZDO.GetDevicesResponsePayload p => HandleAsync(p),
+                ZDO.GetNetworkAddressResponsePayload p => HandleAsync(p),
+                ZDO.GetExtendedAddressResponsePayload p => HandleAsync(p),
+                // ZDO: Service Discovery
                 ZDO.GetActiveEndpointsResponsePayload p => HandleAsync(p),
                 ZDO.GetNodeDescriptorResponsePayload p => HandleAsync(p),
                 ZDO.GetPowerDescriptorResponsePayload p => HandleAsync(p),
-                ZDO.GetNwkAddressResponsePayload p => HandleAsync(p),
-                ZDO.GetExtendedAddressResponsePayload p => HandleAsync(p),
                 ZDO.GetSimpleDescriptorResponsePayload p => HandleAsync(p),
                 ZDO.GetUserDescriptorResponsePayload p => HandleAsync(p),
+                // ZDO: Management
+                ZDO.Mgmt.GetNeighborTableResponsePayload p => HandleAsync(p),
+                ZDO.Mgmt.GetRoutingTableResponsePayload p => HandleAsync(p),
                 _ => default(ValueTask)
             };
             await task;
@@ -108,9 +111,9 @@ namespace Lsquared.SmartHome.Zigbee
 
                 foreach (var neighbor in payload.NeighborTableEntries)
                 {
-                    var resp = await _network!.SendAndReceiveAsync(new ZDO.GetNwkAddressRequestPayload(neighbor.ExtAddr, 0, 0));
-                    if (resp is ZDO.GetNwkAddressResponsePayload p)
-                        if (_network.GetNode(p.NwkAddr) is Node node && node is not null && !node.IsEndDevice)
+                    var resp = await _network!.SendAndReceiveAsync(new ZDO.GetNetworkAddressRequestPayload(neighbor.ExtAddr, 0, 0));
+                    if (resp is ZDO.GetNetworkAddressResponsePayload p)
+                        if (_network!.GetNode(p.NwkAddr) is Node node && node is not null && !node.IsEndDevice)
                             _commandPayloads.Add(new ZDO.Mgmt.GetNeighborTableRequestPayload(node.NwkAddr, 0));
                 }
             }
@@ -150,7 +153,7 @@ namespace Lsquared.SmartHome.Zigbee
             return default;
         }
 
-        private ValueTask HandleAsync(ZDO.GetNwkAddressResponsePayload payload)
+        private ValueTask HandleAsync(ZDO.GetNetworkAddressResponsePayload payload)
         {
             return default;
         }

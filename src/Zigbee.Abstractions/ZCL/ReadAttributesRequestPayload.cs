@@ -1,4 +1,4 @@
-﻿namespace Lsquared.SmartHome.Zigbee.ZCL
+namespace Lsquared.SmartHome.Zigbee.ZCL
 {
-    public sealed record ReadAttributesRequestPayload(APP.Address Address, APP.Endpoint SrcEndpoint, APP.Endpoint DstEndpoint, ushort ClusterID, ushort AttributeID) : ICommandPayload;
+    public sealed record ReadAttributesRequestPayload(ushort ClusterID, ushort AttributeID) : CommandPayload(ClusterID);
 }

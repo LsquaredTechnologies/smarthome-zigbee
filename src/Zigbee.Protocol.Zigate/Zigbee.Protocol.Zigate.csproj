@@ -15,4 +15,8 @@
     <ProjectReference Include="..\Zigbee\Zigbee.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="ZCL.Clusters.Basic\" />
+  </ItemGroup>
+
 </Project>

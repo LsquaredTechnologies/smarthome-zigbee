@@ -1,18 +1,17 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using Lsquared.SmartHome.Zigbee.ZCL.Clusters.Color;
 using Lsquared.SmartHome.Zigbee.ZCL.Clusters.Groups;
+using Lsquared.SmartHome.Zigbee.ZCL.Clusters.Identify;
+using Lsquared.SmartHome.Zigbee.ZCL.Clusters.Level;
 using Lsquared.SmartHome.Zigbee.ZCL.Clusters.OnOff;
 
 namespace Lsquared.SmartHome.Zigbee
 {
     internal sealed class CommandInvoker
     {
-        private readonly ZigbeeNetwork _network;
-        private readonly ZigbeeGroupDiscovery? _groups;
-
         public CommandInvoker(ZigbeeNetwork network)
         {
             _network = network;
@@ -50,7 +49,7 @@ namespace Lsquared.SmartHome.Zigbee
                     "nd" => GetNodeDescriptorAsync(parts.Skip(2).ToArray()),
                     "cd" => GetComplexDescriptorAsync(parts.Skip(2).ToArray()),
                     "sd" => GetSimpleDescriptorAsync(parts.Skip(2).ToArray()),
-                    "attribute" => ReadAttributeAsync(parts.Skip(2).ToArray()),
+                    "attr" or "attribute" => ReadAttributeAsync(parts.Skip(2).ToArray()),
                     "groups" => GetGroupsAsync(parts.Skip(2).ToArray()),
                     _ => UnknownCommand(cmd)
                 },
@@ -60,10 +59,22 @@ namespace Lsquared.SmartHome.Zigbee
                     "groups" => ListGroups(parts.Skip(2).ToArray()),
                     _ => UnknownCommand(cmd)
                 },
+                "move" => parts[1] switch
+                {
+                    "l" or "level" => parts[2] switch
+                    {
+                        "g" or "grp" or "group" => MoveToLevelGroup(parts.Skip(3).ToArray()),
+                        _ => MoveToLevel(parts.Skip(2).ToArray())
+                    },
+                    "t" or "temp" or "temperature" => parts[2] switch
+                    {
+                        "g" or "grp" or "group" => MoveToColorTempGroup(parts.Skip(3).ToArray()),
+                        _ => MoveToColorTemp(parts.Skip(2).ToArray())
+                    },
+                    _ => UnknownCommand(cmd)
+                },
                 "identify" => IdentifyAsync(parts.Skip(1).ToArray()),
-                "on" => OnOffAsync(parts[0], parts.Skip(1).ToArray()),
-                "off" => OnOffAsync(parts[0], parts.Skip(1).ToArray()),
-                "toggle" => OnOffAsync(parts[0], parts.Skip(1).ToArray()),
+                "on" or "off" or "toggle" => OnOffAsync(parts[0], parts.Skip(1).ToArray()),
                 _ => UnknownCommand(cmd)
             };
         }
@@ -109,7 +120,7 @@ namespace Lsquared.SmartHome.Zigbee
                 Console.WriteLine("Usage: permit join status");
             }
             else
-                await _network.SendAsync(new ZDO.Mgmt.GetPermitJoinStatusRequest());
+                await _network.SendAndReceiveAsync(new ZDO.Mgmt.GetPermitJoinStatusRequestPayload());
             return true;
         }
 
@@ -125,7 +136,7 @@ namespace Lsquared.SmartHome.Zigbee
                 var nwkAddr = NWK.Address.AllRouters;
                 if (args.Length == 1)
                     nwkAddr = ushort.Parse(args[0], NumberStyles.HexNumber);
-                await _network.SendAsync(new ZDO.Mgmt.PermitJoinRequestPayload(nwkAddr, enable));
+                await _network.SendAndReceiveAsync(new ZDO.Mgmt.PermitJoinRequestPayload(nwkAddr, enable));
             }
             return true;
         }
@@ -140,14 +151,14 @@ namespace Lsquared.SmartHome.Zigbee
                 byte duration = 30;
                 if (args.Length > 1)
                     duration = byte.Parse(args[4], NumberStyles.HexNumber);
-                await _network.SendAsync(new ZDO.Mgmt.PermitJoinRequestPayload(nwkAddr, duration));
+                await _network.SendAndReceiveAsync(new ZDO.Mgmt.PermitJoinRequestPayload(nwkAddr, duration));
             }
             return true;
         }
 
         async ValueTask<bool> CreateGroupAsync(string[] args)
         {
-            if (args.Length < 2)
+            if (args.Length < 3)
                 Console.WriteLine("Usage: create group <name> <group address> <short address> [<short address...>]");
             else
             {
@@ -157,10 +168,8 @@ namespace Lsquared.SmartHome.Zigbee
                 while (index < args.Length)
                 {
                     NWK.Address nwkAddr = ushort.Parse(args[index++], NumberStyles.HexNumber);
-                    // 00 60 00 0C F2 02 EE 15 01 01 12 34 03 03 41 4C 4C
-                    // 00 60 00 0C F4 02 EE 15 01 01 FF FF 03 03 61 6C 6C
                     var payload = new ZCL.Command<AddGroupRequestPayload>(nwkAddr, 1, 1, new AddGroupRequestPayload(grpAddr, name));
-                    await _network.SendAsync(payload);
+                    await _network.SendAndReceiveAsync(payload);
                 }
             }
             return true;
@@ -173,7 +182,7 @@ namespace Lsquared.SmartHome.Zigbee
             else
             {
                 var payload = new ZDO.GetDevicesRequestPayload();
-                await _network.SendAsync(payload);
+                await _network.SendAndReceiveAsync(payload);
             }
             return true;
         }
@@ -186,7 +195,7 @@ namespace Lsquared.SmartHome.Zigbee
             {
                 NWK.Address nwkAddr = ushort.Parse(args[0], NumberStyles.HexNumber);
                 var payload = new ZDO.GetActiveEndpointsRequestPayload(nwkAddr);
-                await _network.SendAsync(payload);
+                await _network.SendAndReceiveAsync(payload);
             }
             return true;
         }
@@ -199,7 +208,7 @@ namespace Lsquared.SmartHome.Zigbee
             {
                 NWK.Address nwkAddr = ushort.Parse(args[0], NumberStyles.HexNumber);
                 var payload = new ZDO.GetNodeDescriptorRequestPayload(nwkAddr);
-                await _network.SendAsync(payload);
+                await _network.SendAndReceiveAsync(payload);
             }
             return true;
         }
@@ -212,7 +221,7 @@ namespace Lsquared.SmartHome.Zigbee
             {
                 NWK.Address nwkAddr = ushort.Parse(args[0], NumberStyles.HexNumber);
                 var payload = new ZDO.GetComplexDescriptorRequestPayload(nwkAddr);
-                await _network.SendAsync(payload);
+                await _network.SendAndReceiveAsync(payload);
             }
             return true;
         }
@@ -228,7 +237,7 @@ namespace Lsquared.SmartHome.Zigbee
                 if (args.Length > 1)
                     endpoint = byte.Parse(args[1], NumberStyles.HexNumber);
                 var payload = new ZDO.GetSimpleDescriptorRequestPayload(nwkAddr, endpoint);
-                await _network.SendAsync(payload);
+                await _network.SendAndReceiveAsync(payload);
             }
             return true;
         }
@@ -247,18 +256,19 @@ namespace Lsquared.SmartHome.Zigbee
                 if (args[0].Length > 4)
                 {
                     MAC.Address extAddr = ulong.Parse(args[0], NumberStyles.HexNumber);
-                    address = new Lsquared.SmartHome.Zigbee.APP.Address(extAddr);
+                    address = new APP.Address(extAddr);
                 }
                 else
                 {
                     NWK.Address nwkAddr = ushort.Parse(args[0], NumberStyles.HexNumber);
-                    address = new Lsquared.SmartHome.Zigbee.APP.Address(nwkAddr);
+                    address = new APP.Address(nwkAddr);
                 }
                 APP.Endpoint endpoint = byte.Parse(args[1], NumberStyles.HexNumber);
                 var clusterID = ushort.Parse(args[2], NumberStyles.HexNumber);
                 var attributeID = ushort.Parse(args[3], NumberStyles.HexNumber);
-                var payload = new Lsquared.SmartHome.Zigbee.ZCL.ReadAttributesRequestPayload(address, 1, endpoint, clusterID, attributeID);
-                await _network.SendAsync(payload);
+                var payload = new ZCL.Command<ZCL.ReadAttributesRequestPayload>(
+                    address, 1, endpoint, new ZCL.ReadAttributesRequestPayload(clusterID, attributeID));
+                await _network.SendAndReceiveAsync(payload);
             }
             return true;
         }
@@ -276,21 +286,133 @@ namespace Lsquared.SmartHome.Zigbee
                 if (args[0].Length > 4)
                 {
                     MAC.Address extAddr = ulong.Parse(args[0], NumberStyles.HexNumber);
-                    address = new Lsquared.SmartHome.Zigbee.APP.Address(extAddr);
+                    address = new APP.Address(extAddr);
                 }
                 else
                 {
                     NWK.Address nwkAddr = ushort.Parse(args[0], NumberStyles.HexNumber);
-                    address = new Lsquared.SmartHome.Zigbee.APP.Address(nwkAddr);
+                    address = new APP.Address(nwkAddr);
                 }
 
                 APP.Endpoint endpoint = 1;
                 if (args.Length > 1)
                     endpoint = byte.Parse(args[1], NumberStyles.HexNumber);
 
-                await _network.SendAsync(
-                    new Lsquared.SmartHome.Zigbee.ZCL.Command<GetGroupMembershipRequestPayload>(
+                await _network.SendAndReceiveAsync(
+                    new ZCL.Command<GetGroupMembershipRequestPayload>(
                         address, 1, endpoint, new GetGroupMembershipRequestPayload()));
+            }
+            return true;
+        }
+
+        async ValueTask<bool> MoveToLevel(string[] args)
+        {
+            if (args.Length < 1 || args.Length > 5)
+            {
+                Console.WriteLine("Usage: move level <short address> <endpoint> <level> [<duration=5>]");
+                Console.WriteLine("       move level <IEEE address> <endpoint> <level> [<duration=5>]");
+            }
+            else
+            {
+                APP.Address address;
+                if (args[0].Length > 4)
+                {
+                    MAC.Address extAddr = ulong.Parse(args[0], NumberStyles.HexNumber);
+                    address = new APP.Address(extAddr);
+                }
+                else
+                {
+                    NWK.Address nwkAddr = ushort.Parse(args[0], NumberStyles.HexNumber);
+                    address = new APP.Address(nwkAddr);
+                }
+
+                APP.Endpoint endpoint = byte.Parse(args[1], NumberStyles.HexNumber);
+                var level = byte.Parse(args[2], NumberStyles.HexNumber);
+                int duration = 5 * 10;
+                if (args.Length == 4)
+                    duration = int.Parse(args[3]) * 10;
+
+                await _network.SendAndReceiveAsync(
+                    new ZCL.Command<MoveToLevelRequestTimedPayload>(
+                        address, 1, endpoint, new MoveToLevelRequestTimedPayload(true, level, (ushort)duration)));
+            }
+            return true;
+        }
+
+        async ValueTask<bool> MoveToLevelGroup(string[] args)
+        {
+            if (args.Length < 3 || args.Length > 4)
+                Console.WriteLine("Usage: move level group <group address> <endpoint> <level> [<duration=5>]");
+            else
+            {
+                NWK.GroupAddress grpAddr = ushort.Parse(args[0], NumberStyles.HexNumber);
+                var address = new APP.Address(grpAddr);
+
+                APP.Endpoint endpoint = byte.Parse(args[1], NumberStyles.HexNumber);
+                var level = byte.Parse(args[2], NumberStyles.HexNumber);
+                int duration = 5 * 10;
+                if (args.Length == 4)
+                    duration = int.Parse(args[3]) * 10;
+
+                await _network.SendAndReceiveAsync(
+                    new ZCL.Command<MoveToLevelRequestTimedPayload>(
+                        address, 1, endpoint, new MoveToLevelRequestTimedPayload(true, level, (ushort)duration)));
+            }
+            return true;
+        }
+
+        async ValueTask<bool> MoveToColorTemp(string[] args)
+        {
+            if (args.Length < 1 || args.Length > 5)
+            {
+                Console.WriteLine("Usage: move temperature <short address> <endpoint> <temperature in K> [<duration=5>]");
+                Console.WriteLine("       move temperature <IEEE address> <endpoint> <temperature in K> [<duration=5>]");
+            }
+            else
+            {
+                APP.Address address;
+                if (args[0].Length > 4)
+                {
+                    MAC.Address extAddr = ulong.Parse(args[0], NumberStyles.HexNumber);
+                    address = new APP.Address(extAddr);
+                }
+                else
+                {
+                    NWK.Address nwkAddr = ushort.Parse(args[0], NumberStyles.HexNumber);
+                    address = new APP.Address(nwkAddr);
+                }
+
+                APP.Endpoint endpoint = byte.Parse(args[1], NumberStyles.HexNumber);
+                var temperatureInKelvin = int.Parse(args[2]);
+                int duration = 5 * 10;
+                if (args.Length == 4)
+                    duration = int.Parse(args[3]) * 10;
+
+                await _network.SendAndReceiveAsync(
+                    new ZCL.Command<MoveToColorTemperatureRequestPayload>(
+                        address, 1, endpoint, new MoveToColorTemperatureRequestPayload(temperatureInKelvin, (ushort)duration)));
+            }
+            return true;
+        }
+
+        async ValueTask<bool> MoveToColorTempGroup(string[] args)
+        {
+            if (args.Length < 3 || args.Length > 4)
+                Console.WriteLine("Usage: move temperature group <group address> <endpoint> <temperature in K> [<duration=5>]");
+            else
+            {
+                NWK.GroupAddress grpAddr = ushort.Parse(args[0], NumberStyles.HexNumber);
+                var address = new APP.Address(grpAddr);
+
+                APP.Endpoint endpoint = byte.Parse(args[1], NumberStyles.HexNumber);
+                var temperatureInKelvin = int.Parse(args[2]);
+                int duration = 5 * 10;
+                if (args.Length == 4)
+                    duration = int.Parse(args[3]) * 10;
+
+                await _network.SendAndReceiveAsync(
+                    new ZCL.Command<MoveToColorTemperatureRequestPayload>(
+                        address, 1, endpoint, new MoveToColorTemperatureRequestPayload(temperatureInKelvin, (ushort)duration)));
             }
             return true;
         }
@@ -305,7 +427,9 @@ namespace Lsquared.SmartHome.Zigbee
             else
             {
                 NWK.Address nwkAddr = ushort.Parse(args[1], NumberStyles.HexNumber);
-                await _network.SendAsync(new Lsquared.SmartHome.Zigbee.ZCL.IdentifyRequest(nwkAddr, TimeSpan.FromSeconds(5)));
+                await _network.SendAndReceiveAsync(
+                    new ZCL.Command<IdentifyRequestPayload>(
+                        nwkAddr, 1, 1, new IdentifyRequestPayload(TimeSpan.FromSeconds(5))));
             }
             return true;
         }
@@ -324,17 +448,17 @@ namespace Lsquared.SmartHome.Zigbee
                 if (args[0] == "g" || args[0] == "grp" || args[0] == "group")
                 {
                     NWK.GroupAddress grpAddr = ushort.Parse(args[1], NumberStyles.HexNumber);
-                    address = new Lsquared.SmartHome.Zigbee.APP.Address(grpAddr);
+                    address = new APP.Address(grpAddr);
                 }
                 else if (args[0].Length > 4)
                 {
                     MAC.Address extAddr = ulong.Parse(args[0], NumberStyles.HexNumber);
-                    address = new Lsquared.SmartHome.Zigbee.APP.Address(extAddr);
+                    address = new APP.Address(extAddr);
                 }
                 else
                 {
                     NWK.Address nwkAddr = ushort.Parse(args[0], NumberStyles.HexNumber);
-                    address = new Lsquared.SmartHome.Zigbee.APP.Address(nwkAddr);
+                    address = new APP.Address(nwkAddr);
                 }
 
                 var zclCommandPayloadPayload = cmd switch
@@ -345,7 +469,7 @@ namespace Lsquared.SmartHome.Zigbee
                 };
 
                 var zclCommandPayload = new OnOffRequestPayload(zclCommandPayloadPayload);
-                var zclCommand = new Lsquared.SmartHome.Zigbee.ZCL.Command<OnOffRequestPayload>(address, 1, 1, zclCommandPayload);
+                var zclCommand = new ZCL.Command<OnOffRequestPayload>(address, 1, 1, zclCommandPayload);
                 await _network.SendAndReceiveAsync(zclCommand);
             }
             return true;
@@ -356,5 +480,8 @@ namespace Lsquared.SmartHome.Zigbee
             Console.WriteLine($"Unknown command: {cmd}");
             return new ValueTask<bool>(true);
         }
+
+        private readonly ZigbeeNetwork _network;
+        private readonly ZigbeeGroupDiscovery? _groups;
     }
 }

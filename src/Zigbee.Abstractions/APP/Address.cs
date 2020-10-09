@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Runtime.InteropServices;
 
 namespace Lsquared.SmartHome.Zigbee.APP
 {
     [StructLayout(LayoutKind.Explicit)]
-    public readonly struct Address
+    public readonly struct Address : IValue
     {
         [field: FieldOffset(0)]
         public AddressMode Mode { get; }

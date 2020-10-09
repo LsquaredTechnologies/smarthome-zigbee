@@ -13,7 +13,7 @@ namespace Lsquared.SmartHome.Zigbee.Extensibility
             foreach (var item in this.ToArray())
                 if (item is TExtension e)
                     return e;
-            return default;
+            return default!;
         }
 
         public IReadOnlyCollection<TExtension> FindAll<TExtension>() where TExtension : notnull, IExtension<T>

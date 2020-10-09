@@ -8,7 +8,7 @@
     <RootNamespace>Lsquared.SmartHome.Zigbee</RootNamespace>
     <NoWarn>1701;1702;CS0179</NoWarn>
   </PropertyGroup>
-
+  
   <ItemGroup>
     <PackageReference Include="System.IO.Pipelines" Version="4.7.2" />
     <PackageReference Include="System.IO.Ports" Version="4.7.0" />
@@ -17,7 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Functional\Extensions.Functional.csproj" />
     <ProjectReference Include="..\..\src\Zigbee.Abstractions\Zigbee.Abstractions.csproj" />
-    <ProjectReference Include="..\..\src\Zigbee.Protocol.Zigate\Zigbee.Protocol.Zigate.csproj"></ProjectReference>
+    <ProjectReference Include="..\..\src\Zigbee.Protocol.Zigate\Zigbee.Protocol.Zigate.csproj" />
     <ProjectReference Include="..\..\src\Zigbee.Transport.Serial\Zigbee.Transport.Serial.csproj" />
     <ProjectReference Include="..\..\src\Zigbee\Zigbee.csproj" />
   </ItemGroup>

@@ -30,7 +30,7 @@ namespace Lsquared.SmartHome.Zigbee
             where TCommandPayload : ICommandPayload
         {
             var responsePayload = await network.SendAndReceiveAsync(payload, timeout);
-            return responsePayload is TCommandPayload p ? p : default;
+            return responsePayload is TCommandPayload p ? p : default!;
         }
 
         public static Task<ICommandPayload?> SendAndReceiveAsync(this IZigbeeNetwork network, ICommandPayload payload) =>

@@ -1,7 +1,7 @@
-﻿namespace Lsquared.SmartHome.Zigbee.ZCL.Clusters.Level
+namespace Lsquared.SmartHome.Zigbee.ZCL.Clusters.Level
 {
     public abstract record CommandPayload : ICommandPayload
     {
-        public ushort ClusterID => 0x008;
+        public ushort ClusterID => 0x0008;
     }
 }

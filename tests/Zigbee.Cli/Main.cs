@@ -4,8 +4,8 @@ using Lsquared.SmartHome.Zigbee.Protocol.Zigate;
 using Lsquared.SmartHome.Zigbee.Transports.Serial;
 
 var protocol = new ZigateProtocol();
-await using var transport = SerialTransportFactory.FromSerial("COM5");
-await using var network = new ZigbeeNetwork(transport, protocol);
+var transport = SerialTransportFactory.FromSerial("COM5");
+var network = new ZigbeeNetwork(transport, protocol);
 
 network.Extensions.Add(new ZigbeeNodeDiscovery());
 network.Extensions.Add(new ZigbeeGroupDiscovery());
@@ -25,7 +25,7 @@ network.Extensions.Add(new ZigbeeGroupDiscovery());
 //network.RegisterCluster<PressureCluster>(0x0403);
 //network.RegisterCluster<RelativeHumidityCluster>(0x0405);
 
-await network.SendAndReceiveAsync(new GetVersionRequestPayload());
+await network.SendAndReceiveAsync(new Lsquared.SmartHome.Zigbee.ZDO.Mgmt.GetVersionRequestPayload());
 //await network.SendAndReceiveAsync(new Lsquared.SmartHome.Zigbee.ZDO.GetDevicesRequestPayload());
 
 var invoker = new CommandInvoker(network);
@@ -36,3 +36,6 @@ while (@continue)
     var cmd = Console.ReadLine();
     @continue = await invoker.InvokeAsync(cmd);
 }
+
+await network.DisposeAsync();
+await transport.DisposeAsync();
