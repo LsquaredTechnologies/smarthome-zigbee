@@ -1,10 +1,16 @@
 using System;
 using Lsquared.SmartHome.Zigbee;
 using Lsquared.SmartHome.Zigbee.Protocol.Zigate;
-using Lsquared.SmartHome.Zigbee.Transports.Serial;
+using Lsquared.SmartHome.Zigbee.Transports;
+
+var transport = new TransportBuilder()
+    .FromSerial(autoDiscover: true, baudRate: 115200)
+    .WithAutoDicovery<ZigateSerialPortAutoDiscovery>()
+    .Build();
+
+
 
 var protocol = new ZigateProtocol();
-var transport = SerialTransportFactory.FromSerial("COM5");
 var network = new ZigbeeNetwork(transport, protocol);
 
 network.Extensions.Add(new ZigbeeNodeDiscovery());

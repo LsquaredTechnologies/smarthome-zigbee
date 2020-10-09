@@ -16,10 +16,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Functional\Extensions.Functional.csproj" />
-    <ProjectReference Include="..\..\src\Zigbee.Abstractions\Zigbee.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\Zigbee.Protocol.Zigate\Zigbee.Protocol.Zigate.csproj" />
     <ProjectReference Include="..\..\src\Zigbee.Transport.Serial\Zigbee.Transport.Serial.csproj" />
-    <ProjectReference Include="..\..\src\Zigbee\Zigbee.csproj" />
   </ItemGroup>
 
   <Import Project="..\..\src\Backports\Backports.projitems" Label="Shared" />

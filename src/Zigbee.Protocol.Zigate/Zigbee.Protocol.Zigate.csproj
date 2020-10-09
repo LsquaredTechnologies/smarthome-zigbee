@@ -10,8 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Functional\Extensions.Functional.csproj" />
-    <ProjectReference Include="..\Zigbee.Protocol.Abstractions\Zigbee.Protocol.Abstractions.csproj" />
-    <ProjectReference Include="..\Zigbee.Transport.Abstractions\Zigbee.Transport.Abstractions.csproj" />
+    <ProjectReference Include="..\Zigbee.Transport.Serial\Zigbee.Transport.Serial.csproj" />
     <ProjectReference Include="..\Zigbee\Zigbee.csproj" />
   </ItemGroup>
 

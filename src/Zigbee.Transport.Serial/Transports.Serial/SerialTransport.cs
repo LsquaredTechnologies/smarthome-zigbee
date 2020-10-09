@@ -17,8 +17,8 @@ namespace Lsquared.SmartHome.Zigbee.Transports.Serial
         /// Initialize a new instance of <see cref="SerialTransport"/>.
         /// </summary>
         /// <param name="portName"></param>
-        public SerialTransport(string portName) =>
-            _serial = new SerialPort(portName, 115200);
+        public SerialTransport(string portName, int baudRate) =>
+            _serial = new SerialPort(portName, baudRate);
 
         /// <inheritdoc/>
         public ITransportReader CreateReader(IPacketExtractor extractor, IPacketEncoder encoder)
