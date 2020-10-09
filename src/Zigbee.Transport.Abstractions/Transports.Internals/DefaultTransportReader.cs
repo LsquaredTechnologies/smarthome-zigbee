@@ -35,9 +35,29 @@ namespace Lsquared.SmartHome.Zigbee.Transports.Internals
         public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadAsync()
         {
             var stoppingToken = _stoppingCts.Token;
+            stoppingToken.Register(() => _reader.Complete());
+
+            ReadResult result = default;
             ReadOnlySequence<byte> buffer = default;
             while (!stoppingToken.IsCancellationRequested)
             {
+                Debug.WriteLine("[DEBUG] Reading packet...");
+                var timeoutCts = new CancellationTokenSource(500);
+                var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, timeoutCts.Token);
+
+                try
+                {
+                    result = await _reader.ReadAsync(cts.Token);
+
+                    buffer = result.Buffer;
+                    if (buffer.IsEmpty && result.IsCompleted)
+                        break; // exit loop
+                }
+                catch (OperationCanceledException)
+                {
+                    // ignore and continue
+                }
+
                 if (buffer.Length > 0)
                 {
                     SequencePosition examined, consumed;
@@ -46,31 +66,17 @@ namespace Lsquared.SmartHome.Zigbee.Transports.Internals
                         yield return _encoder.Decode(packet);
 
                         _reader.AdvanceTo(consumed, examined);
+
                         if (stoppingToken.IsCancellationRequested)
                             break;
+
                         buffer = buffer.Slice(consumed);
                         if (buffer.Length == 0)
                             break;
                     }
+
                     if (buffer.Length > 0)
                         _reader.AdvanceTo(consumed, examined);
-                }
-
-                try
-                {
-                    Debug.WriteLine("[DEBUG] Reading packet...");
-                    var timeoutCts = new CancellationTokenSource(500);
-                    var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, timeoutCts.Token);
-                    
-                    var read = await _reader.ReadAsync(cts.Token);
-                    
-                    buffer = read.Buffer;
-                    if (buffer.IsEmpty && read.IsCompleted)
-                        break; // exit loop
-                }
-                catch (OperationCanceledException)
-                {
-                    // ignore and continue
                 }
             }
             Debug.WriteLine("[DEBUG] TransportPacketReader::ReadPacketsAsync terminates.");

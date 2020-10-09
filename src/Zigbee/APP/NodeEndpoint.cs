@@ -4,7 +4,9 @@ using Lsquared.SmartHome.Zigbee.ZDO;
 
 namespace Lsquared.SmartHome.Zigbee.APP
 {
-    public sealed class NodeEndpoint : INodeEndpoint, ZCL.ICommandListener
+    public sealed class NodeEndpoint
+        : INodeEndpoint
+        , ZCL.ICommandListener
     {
         public ushort ProfileID { get; private set; }
 
@@ -12,9 +14,9 @@ namespace Lsquared.SmartHome.Zigbee.APP
 
         public byte DeviceVersion { get; private set; }
 
-        public IClusterCollection InClusters { get; }
+        //public ZCL.IClusterCollection InClusters { get; }
 
-        public IClusterCollection OutClusters { get; }
+        //public ZCL.IClusterCollection OutClusters { get; }
 
         internal ZigbeeNetwork Network { get; }
 
@@ -24,8 +26,8 @@ namespace Lsquared.SmartHome.Zigbee.APP
 
         internal NodeEndpoint(ZigbeeNetwork network, Node node, Endpoint endpoint)
         {
-            InClusters = new ClusterCollection(/*this*/);
-            OutClusters = new ClusterCollection(/*this*/);
+            //InClusters = new ZCL.ClusterCollection(/*this*/);
+            //OutClusters = new ZCL.ClusterCollection(/*this*/);
             Network = network;
             Node = node;
             Endpoint = endpoint;
@@ -36,9 +38,9 @@ namespace Lsquared.SmartHome.Zigbee.APP
             switch (command.Payload)
             {
                 case ZCL.ICommandPayload cp:
-                    if (_inClusters.TryGetValue(cp.ClusterID, out var cluster))
+                    if (_clusters.TryGetValue(cp.ClusterID, out var cluster))
                         cluster.OnNext(cp);
-                    if (_outClusters.TryGetValue(cp.ClusterID, out cluster))
+                    if (_clusters.TryGetValue(cp.ClusterID, out cluster))
                         cluster.OnNext(cp);
                     break;
 
@@ -58,18 +60,19 @@ namespace Lsquared.SmartHome.Zigbee.APP
             {
                 var cluster = Network.CreateCluster(c);
                 if (cluster is not null)
-                    _inClusters.Add(c, cluster);
+                    _clusters.Add(c, cluster);
             }
 
             foreach (var c in simpleDescriptor.OutputClusters)
             {
                 var cluster = Network.CreateCluster(c);
                 if (cluster is not null)
-                    _outClusters.Add(c, cluster);
+                    _clusters.Add(c, cluster);
             }
         }
 
-        private readonly Dictionary<ushort, ZCL.Cluster> _inClusters = new();
-        private readonly Dictionary<ushort, ZCL.Cluster> _outClusters = new();
+        private readonly HashSet<ushort> _inClusters = new();
+        private readonly HashSet<ushort> _outClusters = new();
+        private readonly Dictionary<ushort, ZCL.Cluster> _clusters = new();
     }
 }

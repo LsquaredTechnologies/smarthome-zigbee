@@ -3,23 +3,26 @@ using System.Collections.Generic;
 
 namespace Lsquared.SmartHome.Zigbee
 {
-    public sealed record Node : INode
+    public sealed record Node
+        : INode
+        , APP.IHasNodeEndpointCollection
+        , ZDO.IHasNodeDescriptor
+        , ZDO.IHasPowerDescriptor
+        , ZDO.IHasUserDescriptor
     {
         public MAC.Address ExtAddr { get; }
 
         public NWK.Address NwkAddr { get; internal set; }
 
-        public bool IsEndDevice { get; }
+        public bool IsEndDevice { get; } // TODO remove and use NodeDesc instead?
 
-        public ZDO.NodeDescriptor Info { get; internal set; } = new ZDO.NodeDescriptor();
+        public APP.INodeEndpointCollection Endpoints { get; }
 
-        public ZDO.PowerDescriptor PowerInfo { get; internal set; } = new ZDO.PowerDescriptor(0);
+        public ZDO.NodeDescriptor NodeDesc { get; internal set; } = new ZDO.NodeDescriptor();
 
-        ////public ZDO.ComplexDescriptor? ComplexInfo { get; internal set; }
+        public ZDO.PowerDescriptor PowerDesc { get; internal set; } = new ZDO.PowerDescriptor(0);
 
-        public ReadOnlyMemory<byte> UserInfo { get; internal set; } = EmptyUserInfo;
-
-        public APP.INodeEndpointCollection Endpoints { get; } 
+        public ZDO.UserDescriptor UserDesc { get; internal set; } = new ZDO.UserDescriptor();
 
         internal ZigbeeNetwork Network { get; }
 
@@ -36,7 +39,5 @@ namespace Lsquared.SmartHome.Zigbee
                 if (!Endpoints.Contains(endpoint))
                     ((APP.NodeEndpointCollection)Endpoints).Add(Network, this, endpoint);
         }
-
-        private static readonly ReadOnlyMemory<byte> EmptyUserInfo = new byte[0];
     }
 }

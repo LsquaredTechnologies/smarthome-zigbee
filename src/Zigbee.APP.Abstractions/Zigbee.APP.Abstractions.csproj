@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Functional\Extensions.Functional.csproj" />
+    <ProjectReference Include="..\Zigbee.Abstractions\Zigbee.Abstractions.csproj" />
     <ProjectReference Include="..\Zigbee.NWK.Abstractions\Zigbee.NWK.Abstractions.csproj" />
   </ItemGroup>
 

@@ -84,7 +84,7 @@ namespace Lsquared.SmartHome.Zigbee
 
         void ZDO.IDeviceListener.OnNext(INode node)
         {
-            _nodesByNwkAddr.TryAdd(node.NwkAddr, node);
+            if (node is Node n) _nodesByNwkAddr.TryAdd(node.NwkAddr, n);
             _commandPayloads.Add(new ZDO.GetActiveEndpointsRequestPayload(node.NwkAddr));
             _commandPayloads.Add(new ZDO.GetNodeDescriptorRequestPayload(node.NwkAddr));
             _commandPayloads.Add(new ZDO.GetPowerDescriptorRequestPayload(node.NwkAddr));
@@ -92,11 +92,13 @@ namespace Lsquared.SmartHome.Zigbee
 
         private ValueTask HandleAsync(ZDO.GetDevicesResponsePayload payload)
         {
+            _ = payload;
             return default;
         }
 
         private ValueTask HandleAsync(ZDO.DeviceAnnounceIndicationPayload payload)
         {
+            _ = payload;
             ////_network!.RegisterNode(payload.ExtAddr, payload.NwkAddr);
             return default;
         }
@@ -140,46 +142,47 @@ namespace Lsquared.SmartHome.Zigbee
 
         private ValueTask HandleAsync(ZDO.GetNodeDescriptorResponsePayload payload)
         {
-            if (_nodesByNwkAddr.TryGetValue(payload.NwkAddr, out var node))
-                ((Node)node).Info = payload.NodeDescriptor;
-
+            if (_nodesByNwkAddr.TryGetValue(payload.NwkAddr, out Node node))
+                node.NodeDesc = payload.NodeDescriptor;
             return default;
         }
 
         private ValueTask HandleAsync(ZDO.GetPowerDescriptorResponsePayload payload)
         {
-            if (_nodesByNwkAddr.TryGetValue(payload.NwkAddr, out var node))
-                ((Node)node).PowerInfo = payload.PowerDescriptor;
+            if (_nodesByNwkAddr.TryGetValue(payload.NwkAddr, out Node node))
+                node.PowerDesc = payload.PowerDescriptor;
             return default;
         }
 
         private ValueTask HandleAsync(ZDO.GetNetworkAddressResponsePayload payload)
         {
+            _ = payload;
             return default;
         }
 
         private ValueTask HandleAsync(ZDO.GetExtendedAddressResponsePayload payload)
         {
+            _ = payload;
             return default;
         }
 
         private ValueTask HandleAsync(ZDO.GetSimpleDescriptorResponsePayload payload)
         {
-            if (_nodesByNwkAddr.TryGetValue(payload.NwkAddr, out var node) && node.Endpoints.Contains(payload.SimpleDescriptor.Endpoint))
+            if (_nodesByNwkAddr.TryGetValue(payload.NwkAddr, out Node node) && node.Endpoints.Contains(payload.SimpleDescriptor.Endpoint))
                 ((APP.NodeEndpoint)node.Endpoints[payload.SimpleDescriptor.Endpoint]).Register(payload.SimpleDescriptor);
             return default;
         }
 
         private ValueTask HandleAsync(ZDO.GetUserDescriptorResponsePayload payload)
         {
-            if (_nodesByNwkAddr.TryGetValue(payload.NwkAddr, out var node))
-                ((Node)node).UserInfo = payload.UserDescriptor;
+            if (_nodesByNwkAddr.TryGetValue(payload.NwkAddr, out Node node))
+                node.UserDesc = payload.UserDescriptor;
             return default;
         }
 
         private readonly CancellationTokenSource _stoppingCts = new();
         private readonly BlockingCollection<ICommandPayload> _commandPayloads = new();
-        private readonly Dictionary<NWK.Address, INode> _nodesByNwkAddr = new();
+        private readonly Dictionary<NWK.Address, Node> _nodesByNwkAddr = new();
         private ZigbeeNetwork? _network;
     }
 }

@@ -16,6 +16,7 @@ var network = new ZigbeeNetwork(transport, protocol);
 network.Extensions.Add(new ZigbeeNodeDiscovery());
 network.Extensions.Add(new ZigbeeGroupDiscovery());
 
+//network.RegisterDefaultClusters();
 //network.RegisterCluster<BasicCluster>(0x0000);
 //network.RegisterCluster<IdentifyCluster>(0x0003);
 //network.RegisterCluster<GroupsCluster>(0x0004);

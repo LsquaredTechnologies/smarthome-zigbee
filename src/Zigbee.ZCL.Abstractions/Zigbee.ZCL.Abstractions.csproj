@@ -5,11 +5,12 @@
     <LangVersion>preview</LangVersion>
     <Nullable>enable</Nullable>
     <RootNamespace>Lsquared.SmartHome.Zigbee</RootNamespace>
+    <NoWarn>1701;1702;IDE1006</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Functional\Extensions.Functional.csproj" />
-    <ProjectReference Include="..\Zigbee.NWK.Abstractions\Zigbee.NWK.Abstractions.csproj" />
+    <ProjectReference Include="..\Zigbee.Abstractions\Zigbee.Abstractions.csproj" />
+    <ProjectReference Include="..\Zigbee.APP.Abstractions\Zigbee.APP.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

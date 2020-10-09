@@ -16,7 +16,7 @@ namespace Lsquared.SmartHome.Zigbee.Protocol
         [return: NotNull]
         Func<ICommand, bool> ExpectResponseCode(ushort responseCode);
 
-        ValueTask InitializeAsync(IZigbeeNetwork network);
+        ValueTask InitializeAsync(INetwork network);
 
         [return: NotNull]
         ICommand Read(ReadOnlyMemory<byte> memory);

@@ -16,7 +16,7 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
 
         public IPacketExtractor PacketExtractor { get; } = new ZigatePacketExtractor();
 
-        public async ValueTask InitializeAsync(IZigbeeNetwork network)
+        public async ValueTask InitializeAsync(INetwork network)
         {
             var versionResponsePayload = await network.SendAndReceiveAsync<ZDO.Mgmt.GetVersionResponsePayload>(new ZDO.Mgmt.GetVersionRequestPayload());
             if (versionResponsePayload is not null)
@@ -180,7 +180,7 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
             Enum p => Write(p, ref span, ref offset, ref checksum),
             byte[] p => Write(p, ref span, ref offset, ref checksum),
             IArrayValue p => Write(p, ref span, ref offset, ref checksum),
-            IValue p => Write(p, ref span, ref offset, ref checksum),
+            ////IValue p => Write(p, ref span, ref offset, ref checksum),
             ZCL.ICommand p => Write(p, ref span, ref offset, ref checksum),
             ICommandPayload p => Write(p, ref span, ref offset, ref checksum),
             _ => throw new NotSupportedException($"Not supported payload: \"{payload.GetType().Name}\"")
@@ -218,26 +218,26 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
             return default;
         }
 
-        private static Unit Write(IValue payload, ref Span<byte> span, ref int offset, ref byte checksum) => payload switch
-        {
-            // MAC layer
-            MAC.Address p => BigEndianBinary.Write((ulong)p, ref span, ref offset, ref checksum),
-            // NWK layer
-            NWK.Address p => BigEndianBinary.Write((ushort)p, ref span, ref offset, ref checksum),
-            NWK.GroupAddress p => BigEndianBinary.Write((ushort)p, ref span, ref offset, ref checksum),
-            NWK.ChannelMask p => BigEndianBinary.Write((uint)p, ref span, ref offset, ref checksum),
-            // APP layer
-            APP.Address p => Write(p, ref span, ref offset, ref checksum),
-            APP.Endpoint p => BigEndianBinary.Write((byte)p, ref span, ref offset, ref checksum),
-            // ZDO structures
-            ZDO.ComplexDescriptor p => Write(p, ref span, ref offset, ref checksum),
-            ZDO.NeighborTableEntry p => Write(p, ref span, ref offset, ref checksum),
-            ZDO.NodeDescriptor p => Write(p, ref span, ref offset, ref checksum),
-            ZDO.RoutingTableEntry p => Write(p, ref span, ref offset, ref checksum),
-            ZDO.SimpleDescriptor p => Write(p, ref span, ref offset, ref checksum),
-            // Error...
-            _ => throw new NotSupportedException($"Not supported payload: \"{payload.GetType().Name}\"")
-        };
+        //private static Unit Write(IValue payload, ref Span<byte> span, ref int offset, ref byte checksum) => payload switch
+        //{
+        //    // MAC layer
+        //    MAC.Address p => BigEndianBinary.Write((ulong)p, ref span, ref offset, ref checksum),
+        //    // NWK layer
+        //    NWK.Address p => BigEndianBinary.Write((ushort)p, ref span, ref offset, ref checksum),
+        //    NWK.GroupAddress p => BigEndianBinary.Write((ushort)p, ref span, ref offset, ref checksum),
+        //    NWK.ChannelMask p => BigEndianBinary.Write((uint)p, ref span, ref offset, ref checksum),
+        //    // APP layer
+        //    APP.Address p => Write(p, ref span, ref offset, ref checksum),
+        //    APP.Endpoint p => BigEndianBinary.Write((byte)p, ref span, ref offset, ref checksum),
+        //    // ZDO structures
+        //    ZDO.ComplexDescriptor p => Write(p, ref span, ref offset, ref checksum),
+        //    ZDO.NeighborTableEntry p => Write(p, ref span, ref offset, ref checksum),
+        //    ZDO.NodeDescriptor p => Write(p, ref span, ref offset, ref checksum),
+        //    ZDO.RoutingTableEntry p => Write(p, ref span, ref offset, ref checksum),
+        //    ZDO.SimpleDescriptor p => Write(p, ref span, ref offset, ref checksum),
+        //    // Error...
+        //    _ => throw new NotSupportedException($"Not supported payload: \"{payload.GetType().Name}\"")
+        //};
 
         private static Unit Write(ICommandPayload payload, ref Span<byte> span, ref int offset, ref byte checksum) => payload switch
         {

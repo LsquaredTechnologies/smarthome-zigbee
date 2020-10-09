@@ -13,7 +13,7 @@ using Lsquared.SmartHome.Zigbee.ZDO;
 namespace Lsquared.SmartHome.Zigbee
 {
     public sealed class ZigbeeNetwork
-        : IZigbeeNetwork
+        : INetwork
         , IPacketSubscriber
         , ICommandSubscriber
         , IPayloadSubscriber

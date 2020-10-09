@@ -1,4 +1,4 @@
-namespace Lsquared.SmartHome.Zigbee
-{
-    public interface IValue { }
-}
+////namespace Lsquared.SmartHome.Zigbee
+////{
+////    public interface IValue { }
+////}

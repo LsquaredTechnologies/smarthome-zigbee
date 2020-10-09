@@ -50,6 +50,7 @@ namespace Lsquared.SmartHome.Zigbee
         {
             ThreadPool.UnsafeQueueUserWorkItem(_ =>
             {
+                Thread.CurrentThread.Name = "$TaskScheduler$";
                 // Note that the current thread is now processing work items.
                 // This is necessary to enable inlining of tasks into this thread.
                 _currentThreadIsProcessingItems = true;
@@ -75,11 +76,14 @@ namespace Lsquared.SmartHome.Zigbee
                         }
 
                         // Execute the task we pulled out of the queue
-                        base.TryExecuteTask(item);
+                        TryExecuteTask(item);
                     }
                 }
-                // We're done processing items on the current thread
-                finally { _currentThreadIsProcessingItems = false; }
+                finally
+                {
+                    // We're done processing items on the current thread
+                    _currentThreadIsProcessingItems = false;
+                }
             }, null);
         }
 
@@ -87,23 +91,25 @@ namespace Lsquared.SmartHome.Zigbee
         protected sealed override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
         {
             // If this thread isn't already processing a task, we don't support inlining
-            if (!_currentThreadIsProcessingItems) return false;
+            if (!_currentThreadIsProcessingItems)
+                return false;
 
             // If the task was previously queued, remove it from the queue
             if (taskWasPreviouslyQueued)
                 // Try to run the task.
                 if (TryDequeue(task))
-                    return base.TryExecuteTask(task);
+                    return TryExecuteTask(task);
                 else
                     return false;
             else
-                return base.TryExecuteTask(task);
+                return TryExecuteTask(task);
         }
 
         // Attempt to remove a previously scheduled task from the scheduler.
         protected sealed override bool TryDequeue(Task task)
         {
-            lock (_tasks) return _tasks.Remove(task);
+            lock (_tasks)
+                return _tasks.Remove(task);
         }
 
         // Gets the maximum concurrency level supported by this scheduler.
@@ -112,16 +118,19 @@ namespace Lsquared.SmartHome.Zigbee
         // Gets an enumerable of the tasks currently scheduled on this scheduler.
         protected sealed override IEnumerable<Task> GetScheduledTasks()
         {
-            bool lockTaken = false;
+            var lockTaken = false;
+            Monitor.TryEnter(_tasks, ref lockTaken);
             try
             {
-                Monitor.TryEnter(_tasks, ref lockTaken);
-                if (lockTaken) return _tasks;
-                else throw new NotSupportedException();
+                if (lockTaken)
+                    return _tasks;
+                else
+                    throw new NotSupportedException();
             }
             finally
             {
-                if (lockTaken) Monitor.Exit(_tasks);
+                if (lockTaken)
+                    Monitor.Exit(_tasks);
             }
         }
     }

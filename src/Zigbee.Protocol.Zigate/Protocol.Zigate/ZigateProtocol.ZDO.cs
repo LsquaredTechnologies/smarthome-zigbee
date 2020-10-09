@@ -267,8 +267,8 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
         {
             BigEndianBinary.Write(payload.Status, ref span, ref offset, ref checksum);
             BigEndianBinary.Write((ushort)payload.NwkAddr, ref span, ref offset, ref checksum);
-            BigEndianBinary.Write((byte)payload.UserDescriptor.Length, ref span, ref offset, ref checksum);
-            foreach (var b in payload.UserDescriptor.Span)
+            BigEndianBinary.Write((byte)payload.UserDescriptor.Tag.Length, ref span, ref offset, ref checksum);
+            foreach (var b in payload.UserDescriptor.Tag.Span)
                 span[offset++] = b;
             return default;
         }
