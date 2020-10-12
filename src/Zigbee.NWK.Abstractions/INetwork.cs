@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Lsquared.SmartHome.Zigbee
 {
     public interface INetwork : IAsyncDisposable
     {
+        INodeCollection Nodes { get; }
+
         Task<ICommand?> ReceiveAsync(ushort responseCode, TimeSpan timeout);
 
         ValueTask SendAsync(ICommandPayload payload);

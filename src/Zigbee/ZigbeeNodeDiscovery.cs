@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Lsquared.SmartHome.Zigbee.Extensibility;
 using Lsquared.SmartHome.Zigbee.Protocol;
+using Lsquared.SmartHome.Zigbee.ZDO;
 
 namespace Lsquared.SmartHome.Zigbee
 {
@@ -115,7 +116,9 @@ namespace Lsquared.SmartHome.Zigbee
                 {
                     var resp = await _network!.SendAndReceiveAsync(new ZDO.GetNetworkAddressRequestPayload(neighbor.ExtAddr, 0, 0));
                     if (resp is ZDO.GetNetworkAddressResponsePayload p)
-                        if (_network!.GetNode(p.NwkAddr) is Node node && node is not null)
+                        if (_network!.Nodes.TryGetValue(p.NwkAddr, out var node) &&
+                            node is IHasNodeDescriptor nd &&
+                            nd.NodeDescriptor.IsEndDevice)
                             _commandPayloads.Add(new ZDO.Mgmt.GetNeighborTableRequestPayload(node.NwkAddr, 0));
                 }
             }
