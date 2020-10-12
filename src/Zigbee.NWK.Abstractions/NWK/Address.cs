@@ -10,7 +10,7 @@ namespace Lsquared.SmartHome.Zigbee.NWK
         public static readonly Address AllLowPowerRouters = 0xFFFB;
         public static readonly Address AllRouters = 0xFFFC;
         public static readonly Address AllRxOn = 0xFFFD;
-        // Reserved = 0xFFFE
+        public static readonly Address Invalid = 0xFFFE;
         public static readonly Address All = 0xFFFF;
 
         public Address(ushort value) => _value = value;
