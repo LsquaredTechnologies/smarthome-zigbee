@@ -58,16 +58,24 @@ namespace Lsquared.SmartHome.Zigbee.APP
 
             foreach (var c in simpleDescriptor.InputClusters)
             {
-                var cluster = Network.CreateCluster(c);
-                if (cluster is not null)
-                    _clusters.Add(c, cluster);
+                if (!_outClusters.Contains(c))
+                {
+                    var cluster = Network.CreateCluster(c);
+                    if (cluster is not null)
+                        _clusters.Add(c, cluster);
+                }
+                _inClusters.Add(c);
             }
 
             foreach (var c in simpleDescriptor.OutputClusters)
             {
-                var cluster = Network.CreateCluster(c);
-                if (cluster is not null)
-                    _clusters.Add(c, cluster);
+                if (!_inClusters.Contains(c))
+                {
+                    var cluster = Network.CreateCluster(c);
+                    if (cluster is not null)
+                        _clusters.Add(c, cluster);
+                }
+                _outClusters.Add(c);
             }
         }
 
