@@ -26,8 +26,8 @@ namespace Lsquared.SmartHome.Zigbee.ZCL.Clusters.OnOff
                       endpoint,
                       new OnOffWithTimedOffRequestPayload(
                           false,
-                          (byte)(onDuration.TotalSeconds),
-                          (byte)(offDuration.TotalSeconds))))
+                          (ushort)onDuration.TotalSeconds,
+                          (ushort)offDuration.TotalSeconds)))
         { }
 
         public OnWithTimedOffRequest(ICommand command)
