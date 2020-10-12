@@ -317,8 +317,8 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
         private static NeighborTableEntry ReadNeighborTableEntry(ref ReadOnlySpan<byte> span, ref int offset)
         {
             _ = BigEndianBinary.ReadUInt16(ref span, ref offset);
-            var extPanID = BigEndianBinary.ReadUInt64(ref span, ref offset);
-            var extAddr = BigEndianBinary.ReadUInt64(ref span, ref offset);
+            MAC.ExtPanID extPanID = BigEndianBinary.ReadUInt64(ref span, ref offset);
+            MAC.Address extAddr = BigEndianBinary.ReadUInt64(ref span, ref offset);
             var depth = BigEndianBinary.ReadByte(ref span, ref offset);
             var linkQuality = BigEndianBinary.ReadByte(ref span, ref offset);
             var flags = BigEndianBinary.ReadByte(ref span, ref offset);
