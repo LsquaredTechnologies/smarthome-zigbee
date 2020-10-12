@@ -7,6 +7,7 @@ using Lsquared.SmartHome.Zigbee.ZCL.Clusters.Level;
 using Lsquared.SmartHome.Zigbee.ZCL.Clusters.Color;
 using Lsquared.SmartHome.Zigbee.ZCL.Clusters.OnOff;
 using static Lsquared.Extensions.Functional;
+using Lsquared.SmartHome.Zigbee.ZCL.Clusters.Identify;
 
 namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
 {
@@ -28,6 +29,7 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
                 ReadAttributesRequestPayload p => Write(p, ref span, ref offset, ref checksum),
                 // Basic
                 // Identify
+                IdentifyRequestPayload p => BigEndianBinary.Write((ushort)(p.Duration.TotalSeconds), ref span, ref offset, ref checksum),
                 // Groups
                 AddGroupRequestPayload p => Write(p, ref span, ref offset, ref checksum),
                 GetGroupMembershipRequestPayload p => Write(p, ref span, ref offset, ref checksum),

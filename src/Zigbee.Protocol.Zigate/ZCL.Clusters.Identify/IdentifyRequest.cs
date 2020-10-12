@@ -21,7 +21,7 @@ namespace Lsquared.SmartHome.Zigbee.ZCL.Clusters.Identify
                 new IdentifyRequestPayload(duration)))
         { }
 
-        public IdentifyRequest(NWK.Address dstNwkAddr, Clusters.Identify.IdentifyRequestPayload payload)
+        public IdentifyRequest(NWK.Address dstNwkAddr, IdentifyRequestPayload payload)
             : this(new Command<IdentifyRequestPayload>(
                 new APP.Address(dstNwkAddr),
                 1,
@@ -29,7 +29,7 @@ namespace Lsquared.SmartHome.Zigbee.ZCL.Clusters.Identify
                 payload))
         { }
 
-        public IdentifyRequest(NWK.Address dstNwkAddr, APP.Endpoint dstEndpoint, Clusters.Identify.IdentifyRequestPayload payload)
+        public IdentifyRequest(NWK.Address dstNwkAddr, APP.Endpoint dstEndpoint, IdentifyRequestPayload payload)
             : this(new Command<IdentifyRequestPayload>(
                 new APP.Address(dstNwkAddr),
                 1,

@@ -58,6 +58,7 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
             // 0x0000: Basic
 
             // 0x0003: Identify
+            ZCL.Command<ZCL.Clusters.Identify.IdentifyRequestPayload> p => new ZCL.Clusters.Identify.IdentifyRequest(p),
 
             // 0x0004: Groups
             ZCL.Command<ZCL.Clusters.Groups.AddGroupRequestPayload> p => new ZCL.Clusters.Groups.AddGroupRequest(p),
