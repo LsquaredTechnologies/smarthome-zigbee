@@ -426,7 +426,7 @@ namespace Lsquared.SmartHome.Zigbee
             }
             else
             {
-                NWK.Address nwkAddr = ushort.Parse(args[1], NumberStyles.HexNumber);
+                NWK.Address nwkAddr = ushort.Parse(args[0], NumberStyles.HexNumber);
                 await _network.SendAndReceiveAsync(
                     new ZCL.Command<IdentifyRequestPayload>(
                         nwkAddr, 1, 1, new IdentifyRequestPayload(TimeSpan.FromSeconds(5))));
