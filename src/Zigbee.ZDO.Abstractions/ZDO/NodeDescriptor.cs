@@ -40,8 +40,8 @@ namespace Lsquared.SmartHome.Zigbee.ZDO
             b.Append("MaxRxSize: ").AppendFormat("{0:X4}", MaxRxSize).Append(", ");
             b.Append("MaxTxSize: ").AppendFormat("{0:X4}", MaxTxSize).Append(", ");
             b.Append("ServerMask: ").AppendFormat("{0:X4}", ServerMask).Append(", ");
-            b.Append("MacCapabilities: ").AppendFormat("{0:X2}", MacCapabilities).Append(", ");
-            b.Append("DescriptorCapabilities: ").AppendFormat("{0:X2}", MacCapabilities);
+            b.Append("MacCapabilities: ").Append(MacCapabilities).Append(", ");
+            b.Append("DescriptorCapabilities: ").Append(DescriptorCapabilities);
             return b.ToString();
         }
     }
