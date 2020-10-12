@@ -33,22 +33,24 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zigbee.Cli", "tests\Zigbee.
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Backports", "src\Backports\Backports.shproj", "{F360D825-3BE8-4DB7-8AD6-C20CA4149424}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zigbee.MAC.Abstractions", "src\Zigbee.MAC.Abstractions\Zigbee.MAC.Abstractions.csproj", "{D0F3AA13-276A-4C53-BD0C-9AE982796BEA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zigbee.MAC.Abstractions", "src\Zigbee.MAC.Abstractions\Zigbee.MAC.Abstractions.csproj", "{D0F3AA13-276A-4C53-BD0C-9AE982796BEA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zigbee.NWK.Abstractions", "src\Zigbee.NWK.Abstractions\Zigbee.NWK.Abstractions.csproj", "{FBB282A7-96C4-47D6-A3F5-D744FA13E914}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zigbee.NWK.Abstractions", "src\Zigbee.NWK.Abstractions\Zigbee.NWK.Abstractions.csproj", "{FBB282A7-96C4-47D6-A3F5-D744FA13E914}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zigbee.APP.Abstractions", "src\Zigbee.APP.Abstractions\Zigbee.APP.Abstractions.csproj", "{BA589E5E-89F8-4C76-8CCB-B647DC443970}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zigbee.APP.Abstractions", "src\Zigbee.APP.Abstractions\Zigbee.APP.Abstractions.csproj", "{BA589E5E-89F8-4C76-8CCB-B647DC443970}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zigbee.ZDO.Abstractions", "src\Zigbee.ZDO.Abstractions\Zigbee.ZDO.Abstractions.csproj", "{4BE3A693-AA4D-41D7-AF6A-DDD7DE72843D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zigbee.ZDO.Abstractions", "src\Zigbee.ZDO.Abstractions\Zigbee.ZDO.Abstractions.csproj", "{4BE3A693-AA4D-41D7-AF6A-DDD7DE72843D}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zigbee.ZCL.Abstractions", "src\Zigbee.ZCL.Abstractions\Zigbee.ZCL.Abstractions.csproj", "{420E60AE-C597-4200-BD24-7B33EA7AC025}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zigbee.Serialization", "src\Zigbee.Serialization\Zigbee.Serialization.csproj", "{BC15B2C2-4563-4E27-8567-8EDB1577FE04}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zigbee.Serialization", "src\Zigbee.Serialization\Zigbee.Serialization.csproj", "{BC15B2C2-4563-4E27-8567-8EDB1577FE04}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zigbee.Extensibility", "src\Zigbee.Extensibility\Zigbee.Extensibility.csproj", "{0BA2CCDA-5FCF-4318-8764-EBC16E81F62F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zigbee.Extensibility", "src\Zigbee.Extensibility\Zigbee.Extensibility.csproj", "{0BA2CCDA-5FCF-4318-8764-EBC16E81F62F}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		src\Backports\Backports.projitems*{4be3a693-aa4d-41d7-af6a-ddd7de72843d}*SharedItemsImports = 5
+		src\Backports\Backports.projitems*{4cb1539c-4a07-4238-9ed9-cf117a1ac320}*SharedItemsImports = 5
 		src\Backports\Backports.projitems*{7ab1d740-f86e-48bb-be2d-e9692e02ea38}*SharedItemsImports = 5
 		src\Backports\Backports.projitems*{9367170b-dd1f-47a3-8339-32c8f70f5836}*SharedItemsImports = 5
 		src\Backports\Backports.projitems*{f360d825-3be8-4db7-8ad6-c20ca4149424}*SharedItemsImports = 13

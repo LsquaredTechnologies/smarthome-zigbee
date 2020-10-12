@@ -293,11 +293,10 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
                 MaxRxSize = BigEndianBinary.ReadUInt16(ref span, ref offset),
                 MaxTxSize = BigEndianBinary.ReadUInt16(ref span, ref offset),
                 ServerMask = BigEndianBinary.ReadUInt16(ref span, ref offset),
-                DescriptorCapabilities = BigEndianBinary.ReadByte(ref span, ref offset),
-                MacCapabilities = BigEndianBinary.ReadByte(ref span, ref offset),
+                DescriptorCapabilities = (DescriptorCapabilities)BigEndianBinary.ReadByte(ref span, ref offset),
+                MacCapabilities = (MacCapabilities)BigEndianBinary.ReadByte(ref span, ref offset),
                 MaxBufferSize = BigEndianBinary.ReadByte(ref span, ref offset),
-                BitsFlag0 = BigEndianBinary.ReadByte(ref span, ref offset),
-                BitsFlag1 = BigEndianBinary.ReadByte(ref span, ref offset),
+                BitsFlag = BigEndianBinary.ReadUInt16(ref span, ref offset),
             };
 
         private static SimpleDescriptor ReadSimpleDescriptor(ref ReadOnlySpan<byte> span, ref int offset)

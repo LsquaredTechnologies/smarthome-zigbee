@@ -14,15 +14,13 @@ namespace Lsquared.SmartHome.Zigbee
 
         public NWK.Address NwkAddr { get; internal set; }
 
-        public bool IsEndDevice { get; } // TODO remove and use NodeDesc instead?
-
         public APP.INodeEndpointCollection Endpoints { get; }
 
-        public ZDO.NodeDescriptor NodeDesc { get; internal set; } = new ZDO.NodeDescriptor();
+        public ZDO.NodeDescriptor NodeDescriptor { get; internal set; } = new ZDO.NodeDescriptor();
 
-        public ZDO.PowerDescriptor PowerDesc { get; internal set; } = new ZDO.PowerDescriptor(0);
+        public ZDO.PowerDescriptor PowerDescriptor { get; internal set; } = new ZDO.PowerDescriptor(0);
 
-        public ZDO.UserDescriptor UserDesc { get; internal set; } = new ZDO.UserDescriptor();
+        public ZDO.UserDescriptor UserDescriptor { get; internal set; } = new ZDO.UserDescriptor();
 
         internal ZigbeeNetwork Network { get; }
 

@@ -2,13 +2,23 @@ using System.Text;
 
 namespace Lsquared.SmartHome.Zigbee.ZDO
 {
-    public sealed record NodeDescriptor 
+    public sealed record NodeDescriptor
     {
-        public byte BitsFlag0 { get; init; }
+        public LogicalType LogicalType => (LogicalType)(BitsFlag >> 5);
 
-        public byte BitsFlag1 { get; init; }
+        public bool IsCoordinator => LogicalType == LogicalType.Coordinator;
 
-        public byte MacCapabilities { get; init; }
+        public bool IsRouter => LogicalType == LogicalType.Router;
+
+        public bool IsEndDevice => LogicalType == LogicalType.EndDevice;
+
+        public bool IsComplexDescriptorAvailable => (BitsFlag & 0b10000) == 0b10000;
+
+        public bool IsUserDescriptorAvailable => (BitsFlag & 0b1000) == 0b1000;
+
+        public ushort BitsFlag { get; init; }
+
+        public MacCapabilities MacCapabilities { get; init; }
 
         public ushort ManufacturerCode { get; init; }
 
@@ -20,7 +30,7 @@ namespace Lsquared.SmartHome.Zigbee.ZDO
 
         public ushort MaxTxSize { get; init; }
 
-        public byte DescriptorCapabilities { get; init; }
+        public DescriptorCapabilities DescriptorCapabilities { get; init; }
 
         public override string ToString()
         {

@@ -13,4 +13,6 @@
     <ProjectReference Include="..\Zigbee.APP.Abstractions\Zigbee.APP.Abstractions.csproj" />
   </ItemGroup>
 
+  <Import Project="..\Backports\Backports.projitems" Label="Shared" />
+
 </Project>

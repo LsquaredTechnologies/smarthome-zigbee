@@ -18,4 +18,6 @@
     <Folder Include="ZCL.Clusters.Basic\" />
   </ItemGroup>
 
+  <Import Project="..\Backports\Backports.projitems" Label="Shared" />
+
 </Project>

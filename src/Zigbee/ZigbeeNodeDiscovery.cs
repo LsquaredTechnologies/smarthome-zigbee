@@ -115,7 +115,7 @@ namespace Lsquared.SmartHome.Zigbee
                 {
                     var resp = await _network!.SendAndReceiveAsync(new ZDO.GetNetworkAddressRequestPayload(neighbor.ExtAddr, 0, 0));
                     if (resp is ZDO.GetNetworkAddressResponsePayload p)
-                        if (_network!.GetNode(p.NwkAddr) is Node node && node is not null && !node.IsEndDevice)
+                        if (_network!.GetNode(p.NwkAddr) is Node node && node is not null)
                             _commandPayloads.Add(new ZDO.Mgmt.GetNeighborTableRequestPayload(node.NwkAddr, 0));
                 }
             }
@@ -143,14 +143,14 @@ namespace Lsquared.SmartHome.Zigbee
         private ValueTask HandleAsync(ZDO.GetNodeDescriptorResponsePayload payload)
         {
             if (_nodesByNwkAddr.TryGetValue(payload.NwkAddr, out Node node))
-                node.NodeDesc = payload.NodeDescriptor;
+                node.NodeDescriptor = payload.NodeDescriptor;
             return default;
         }
 
         private ValueTask HandleAsync(ZDO.GetPowerDescriptorResponsePayload payload)
         {
             if (_nodesByNwkAddr.TryGetValue(payload.NwkAddr, out Node node))
-                node.PowerDesc = payload.PowerDescriptor;
+                node.PowerDescriptor = payload.PowerDescriptor;
             return default;
         }
 
@@ -176,7 +176,7 @@ namespace Lsquared.SmartHome.Zigbee
         private ValueTask HandleAsync(ZDO.GetUserDescriptorResponsePayload payload)
         {
             if (_nodesByNwkAddr.TryGetValue(payload.NwkAddr, out Node node))
-                node.UserDesc = payload.UserDescriptor;
+                node.UserDescriptor = payload.UserDescriptor;
             return default;
         }
 
