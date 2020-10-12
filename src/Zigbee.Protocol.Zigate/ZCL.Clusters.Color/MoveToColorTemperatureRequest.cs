@@ -5,16 +5,15 @@ namespace Lsquared.SmartHome.Zigbee.ZCL.Clusters.Color
 {
     public sealed record MoveToColorTemperatureRequest : Request
     {
-        public MoveToColorTemperatureRequest(NWK.Address nwkAddr, APP.Endpoint endpoint, int colorTemperature, TimeSpan transitionTime)
-            : base(
-                  new ZigateCommandHeader(0x00C0, 0),
+        public MoveToColorTemperatureRequest(NWK.Address nwkAddr, APP.Endpoint endpoint, int colorTemperatureInKelvin, TimeSpan transitionTime)
+            : this(
                   new Command<MoveToColorTemperatureRequestPayload>(
                       new APP.Address(nwkAddr),
                       endpoint,
                       endpoint,
                       new MoveToColorTemperatureRequestPayload(
-                          (ushort)(1000000 / colorTemperature),
-                          (ushort)(transitionTime.TotalSeconds / 10))))
+                          colorTemperatureInKelvin,
+                          transitionTime)))
         { }
 
         public MoveToColorTemperatureRequest(ICommand command)

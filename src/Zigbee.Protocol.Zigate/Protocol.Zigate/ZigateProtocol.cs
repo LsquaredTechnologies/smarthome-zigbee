@@ -78,6 +78,7 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
             // 0x0102: WindowCovering
 
             // 0x0300: ColorControl
+            ZCL.Command<ZCL.Clusters.Color.MoveToColorRequestPayload> p => new ZCL.Clusters.Color.MoveToColorRequest(p),
             ZCL.Command<ZCL.Clusters.Color.MoveToColorTemperatureRequestPayload> p => new ZCL.Clusters.Color.MoveToColorTemperatureRequest(p),
             // Error...
             _ => throw new NotSupportedException($"Cannot create request from payload: {payload.GetType()}")

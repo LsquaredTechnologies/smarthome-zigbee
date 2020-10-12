@@ -44,6 +44,7 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
                 // DoorLock
                 // WindowCovering
                 // Color
+                MoveToColorRequestPayload p => Write(p, ref span, ref offset, ref checksum),
                 MoveToColorTemperatureRequestPayload p => Write(p, ref span, ref offset, ref checksum),
                 // Error...
                 _ => throw new NotSupportedException($"Not supported payload: \"{payload.Payload.GetType().Name}\"")
@@ -231,10 +232,18 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
 
         #region Color Cluster
 
+        private static Unit Write(MoveToColorRequestPayload payload, ref Span<byte> span, ref int offset, ref byte checksum)
+        {
+            BigEndianBinary.Write(payload.ColorX, ref span, ref offset, ref checksum);
+            BigEndianBinary.Write(payload.ColorY, ref span, ref offset, ref checksum);
+            BigEndianBinary.Write((ushort)(payload.TransitionTime.TotalSeconds * 10), ref span, ref offset, ref checksum);
+            return default;
+        }
+
         private static Unit Write(MoveToColorTemperatureRequestPayload payload, ref Span<byte> span, ref int offset, ref byte checksum)
         {
             BigEndianBinary.Write(payload.ColorTemperatureMired, ref span, ref offset, ref checksum);
-            BigEndianBinary.Write(payload.TransitionTime, ref span, ref offset, ref checksum);
+            BigEndianBinary.Write((ushort)(payload.TransitionTime.TotalSeconds * 10), ref span, ref offset, ref checksum);
             return default;
         }
 

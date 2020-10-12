@@ -361,6 +361,32 @@ namespace Lsquared.SmartHome.Zigbee
             return true;
         }
 
+        async ValueTask<bool> MoveToColor(string[] args)
+        {
+            if (args.Length < 1 || args.Length > 5)
+            {
+                Console.WriteLine("Usage: move color <short address> <endpoint> <RGB color> [<duration=5>]");
+            }
+            else
+            {
+                NWK.Address nwkAddr = ushort.Parse(args[0], NumberStyles.HexNumber);
+
+                APP.Endpoint endpoint = byte.Parse(args[1], NumberStyles.HexNumber);
+                var color = int.Parse(args[2]);
+                var colorR = (byte)(color >> 16);
+                var colorG = (byte)(color >> 8);
+                var colorB = (byte)(color >> 0);
+                int duration = 5;
+                if (args.Length == 4)
+                    duration = int.Parse(args[3]);
+
+                await _network.SendAndReceiveAsync(
+                    new ZCL.Command<MoveToColorRequestPayload>(
+                        nwkAddr, 1, endpoint, new MoveToColorRequestPayload(new Color(colorR, colorG, colorB), TimeSpan.FromSeconds(duration))));
+            }
+            return true;
+        }
+
         async ValueTask<bool> MoveToColorTemp(string[] args)
         {
             if (args.Length < 1 || args.Length > 5)
@@ -384,13 +410,13 @@ namespace Lsquared.SmartHome.Zigbee
 
                 APP.Endpoint endpoint = byte.Parse(args[1], NumberStyles.HexNumber);
                 var temperatureInKelvin = int.Parse(args[2]);
-                int duration = 5 * 10;
+                int duration = 5;
                 if (args.Length == 4)
-                    duration = int.Parse(args[3]) * 10;
+                    duration = int.Parse(args[3]);
 
                 await _network.SendAndReceiveAsync(
                     new ZCL.Command<MoveToColorTemperatureRequestPayload>(
-                        address, 1, endpoint, new MoveToColorTemperatureRequestPayload(temperatureInKelvin, (ushort)duration)));
+                        address, 1, endpoint, new MoveToColorTemperatureRequestPayload(temperatureInKelvin, TimeSpan.FromSeconds(duration))));
             }
             return true;
         }
@@ -412,7 +438,7 @@ namespace Lsquared.SmartHome.Zigbee
 
                 await _network.SendAndReceiveAsync(
                     new ZCL.Command<MoveToColorTemperatureRequestPayload>(
-                        address, 1, endpoint, new MoveToColorTemperatureRequestPayload(temperatureInKelvin, (ushort)duration)));
+                        address, 1, endpoint, new MoveToColorTemperatureRequestPayload(temperatureInKelvin, TimeSpan.FromSeconds(duration))));
             }
             return true;
         }
