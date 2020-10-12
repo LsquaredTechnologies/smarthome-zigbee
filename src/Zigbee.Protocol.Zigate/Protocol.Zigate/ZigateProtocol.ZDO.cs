@@ -80,7 +80,8 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
 
         private static Unit Write(GetNetworkAddressRequestPayload payload, ref Span<byte> span, ref int offset, ref byte checksum)
         {
-            BigEndianBinary.Write((ushort)payload.ExtAddr, ref span, ref offset, ref checksum);
+            BigEndianBinary.Write((ushort)NWK.Address.All, ref span, ref offset, ref checksum);
+            BigEndianBinary.Write((ulong)payload.ExtAddr, ref span, ref offset, ref checksum);
             BigEndianBinary.Write(payload.RequestType, ref span, ref offset, ref checksum);
             BigEndianBinary.Write(payload.StartIndex, ref span, ref offset, ref checksum);
             return default;
@@ -100,6 +101,11 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
 
         private static Unit Write(GetExtendedAddressRequestPayload payload, ref Span<byte> span, ref int offset, ref byte checksum)
         {
+            var targetNwkAddr = payload.NwkAddr == NWK.Address.Coordinator
+                    ? NWK.Address.Coordinator
+                    : NWK.Address.All;
+
+            BigEndianBinary.Write((ushort)targetNwkAddr, ref span, ref offset, ref checksum);
             BigEndianBinary.Write((ushort)payload.NwkAddr, ref span, ref offset, ref checksum);
             BigEndianBinary.Write(payload.RequestType, ref span, ref offset, ref checksum);
             BigEndianBinary.Write(payload.StartIndex, ref span, ref offset, ref checksum);
