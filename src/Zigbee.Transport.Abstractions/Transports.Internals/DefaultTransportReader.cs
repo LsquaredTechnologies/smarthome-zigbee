@@ -47,7 +47,7 @@ namespace Lsquared.SmartHome.Zigbee.Transports.Internals
 
                 try
                 {
-                    result = await _reader.ReadAsync(cts.Token);
+                    result = await _reader.ReadAsync(cts.Token).ConfigureAwait(false);
 
                     buffer = result.Buffer;
                     if (buffer.IsEmpty && result.IsCompleted)

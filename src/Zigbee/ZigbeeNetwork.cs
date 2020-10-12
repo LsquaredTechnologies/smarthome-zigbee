@@ -1,6 +1,6 @@
 using System;
 using System.Buffers;
-using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
@@ -9,7 +9,6 @@ using Lsquared.SmartHome.Zigbee.Extensibility;
 using Lsquared.SmartHome.Zigbee.Protocol;
 using Lsquared.SmartHome.Zigbee.Protocol.Commands;
 using Lsquared.SmartHome.Zigbee.Transports;
-using Lsquared.SmartHome.Zigbee.ZDO;
 
 namespace Lsquared.SmartHome.Zigbee
 {
@@ -33,34 +32,41 @@ namespace Lsquared.SmartHome.Zigbee
         {
             Extensions = new ExtensionCollection<ZigbeeNetwork>(this);
 
-            ////_transport = transport; // keep ref to transport
             _protocol = protocol;
             _reader = transport.CreateReader(protocol.PacketExtractor, protocol.PacketEncoder);
             _writer = transport.CreateWriter(protocol.PacketEncoder);
 
-            ////_unsubscriberPayloadListener = Subscribe((IPayloadListener)this);
-            //_unsubscriberCommandListener = Subscribe(new CommandPayloadListener(_payloadListeners));
-            //_unsubscriberZclCommandListener = Subscribe(new ZclCommandPayloadListener(_payloadListeners));
-
-            var taskScheduler = new LimitedConcurrencyLevelTaskScheduler(2);
+            var taskScheduler = new LimitedConcurrencyLevelTaskScheduler(3);
             var factory = new TaskFactory(taskScheduler);
-            _consumerTask = factory.StartNew(ConsumeAsync);
+            _consumerTask = new Lazy<Task>(() => factory.StartNew(ConsumeAsync));
+            _produceTask = new Lazy<Task>(() => factory.StartNew(ProduceAsync));
+        }
 
-            //(_consumerThread = new Thread(Consume)).Start();
+        public ValueTask StartAsync()
+        {
+            var task = _consumerTask.Value;
+            if (task.IsCompleted) return new ValueTask(task);
+
+            task = _produceTask.Value;
+            if (task.IsCompleted) return new ValueTask(task);
+
+            Task.Run(async () =>
+            {
+                await _protocol.InitializeAsync(this).ConfigureAwait(false);
+
+                // Get IEEE address and neighbors of coordinator!
+                await SendAsync(new ZDO.GetExtendedAddressRequestPayload(NWK.Address.Coordinator, 0, 0)).ConfigureAwait(false);
+                await SendAsync(new ZDO.Mgmt.GetNeighborTableRequestPayload(NWK.Address.Coordinator, 0)).ConfigureAwait(false);
+            });
+
+            return default;
         }
 
         public async ValueTask DisposeAsync()
         {
             _stoppingCts.Cancel();
-            //_consumerThread.Join(2500);
-            //if (_consumerThread.IsAlive)
-            //    _consumerThread.Abort();
-            await _consumerTask;
-
-            ////_unsubscriberPayloadListener.Dispose();
-            ////_unsubscriberCommandListener.Dispose();
-
-            //return default;
+            if (_consumerTask.IsValueCreated)
+                await _consumerTask.Value.ConfigureAwait(false);
         }
 
         public void RegisterCluster<TCluster>(ushort clusterID) where TCluster : ZCL.Cluster, new() =>
@@ -81,7 +87,7 @@ namespace Lsquared.SmartHome.Zigbee
             using var unsubscriber = Subscribe(listener);
             try
             {
-                var command = await listener.Result.Task; // need await to avoid `unsubscriber` to dispose!
+                var command = await listener.Result.Task.ConfigureAwait(false); // need await to avoid `unsubscriber` to dispose!
                 return command;
             }
             catch (TaskCanceledException)
@@ -116,8 +122,8 @@ namespace Lsquared.SmartHome.Zigbee
 
         public ValueTask SendAsync(ReadOnlyMemory<byte> packet)
         {
-            Debug.WriteLine("[DEBUG] > " + BitConverter.ToString(packet.ToArray()).Replace("-", " "));
-            return _writer.WriteAsync(packet);
+            _writeQueue.Add(packet);
+            return default;
         }
 
         #endregion
@@ -129,8 +135,8 @@ namespace Lsquared.SmartHome.Zigbee
             var request = _protocol.CreateRequest(payload);
             if (request is null) return null;
             var receiving = ReceiveAsync(request.ExpectedResponseCode, timeout);
-            await SendAsync(request);
-            var response = await receiving;
+            await SendAsync(request).ConfigureAwait(false);
+            var response = await receiving.ConfigureAwait(false);
             return response?.Payload;
         }
 
@@ -140,50 +146,72 @@ namespace Lsquared.SmartHome.Zigbee
 
         public IDisposable Subscribe(IPacketListener listener)
         {
-            if (!_packetListeners.Contains(listener))
-                _packetListeners.Add(listener);
+            lock (_packetListeners)
+                if (!_packetListeners.Contains(listener))
+                    _packetListeners.Add(listener);
             return new Unsubscriber<IPacketListener>(_packetListeners, listener);
         }
 
         public IDisposable Subscribe(ICommandListener listener)
         {
-            if (!_commandListeners.Contains(listener))
-                _commandListeners.Add(listener);
+            lock (_commandListeners)
+                if (!_commandListeners.Contains(listener))
+                    _commandListeners.Add(listener);
             return new Unsubscriber<ICommandListener>(_commandListeners, listener);
         }
 
         public IDisposable Subscribe(IPayloadListener listener)
         {
-            if (!_payloadListeners.Contains(listener))
-                _payloadListeners.Add(listener);
+            lock (_payloadListeners)
+                if (!_payloadListeners.Contains(listener))
+                    _payloadListeners.Add(listener);
             return new Unsubscriber<IPayloadListener>(_payloadListeners, listener);
         }
 
         public IDisposable Subscribe(ZCL.ICommandListener listener)
         {
-            if (!_zclCommandListeners.Contains(listener))
-                _zclCommandListeners.Add(listener);
+            lock (_zclCommandListeners)
+                if (!_zclCommandListeners.Contains(listener))
+                    _zclCommandListeners.Add(listener);
             return new Unsubscriber<ZCL.ICommandListener>(_zclCommandListeners, listener);
         }
 
         public IDisposable Subscribe(ZDO.IDeviceListener listener)
         {
-            if (!_deviceAnnounceListeners.Contains(listener))
-                _deviceAnnounceListeners.Add(listener);
+            lock (_deviceAnnounceListeners)
+                if (!_deviceAnnounceListeners.Contains(listener))
+                    _deviceAnnounceListeners.Add(listener);
             return new Unsubscriber<ZDO.IDeviceListener>(_deviceAnnounceListeners, listener);
         }
 
         #endregion
+
+        private async Task ProduceAsync()
+        {
+            try
+            {
+                var stoppingToken = _stoppingCts.Token;
+                var e = _writeQueue.GetConsumingEnumerable(stoppingToken).GetEnumerator();
+                while (e.MoveNext())
+                {
+                    var packet = e.Current;
+                    Debug.WriteLine("[DEBUG] > " + BitConverter.ToString(packet.ToArray()).Replace("-", " "));
+                    await _writer.WriteAsync(packet).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                // TODO log error
+                _ = ex;
+            }
+        }
 
         private async Task ConsumeAsync()
         {
             try
             {
                 var stoppingToken = _stoppingCts.Token;
-
-                //await _protocol.InitializeAsync(this);
-
-                var packets = _reader.ReadAsync();
+                var packets = _reader.ReadAsync().ConfigureAwait(false);
                 await foreach (var packet in packets)
                 {
                     if (stoppingToken.IsCancellationRequested)
@@ -209,42 +237,25 @@ namespace Lsquared.SmartHome.Zigbee
                     foreach (var listener in _payloadListeners.ToArray())
                         listener?.OnNext(command.Payload);
 
-                    if (command.Payload is ZDO.DeviceAnnounceIndicationPayload p1)
+                    switch (command.Payload)
                     {
-                        var node = new Node(this, p1.ExtAddr) with { NwkAddr = p1.NwkAddr };
-                        _ = _nodes.Add(node);
+                        case ZDO.DeviceAnnounceIndicationPayload p: Register(p.ExtAddr, p.NwkAddr); break;
 
-                        foreach (var listener in _deviceAnnounceListeners)
-                            listener.OnNext(node);
-                    }
-                    else if (command.Payload is ZDO.GetDevicesResponsePayload p2)
-                    {
-                        foreach (var device in p2.Devices)
-                        {
-                            var node = new Node(this, device.ExtAddr) with { NwkAddr = device.NwkAddr };
-                            _ = _nodes.Add(node);
+                        case ZDO.GetExtendedAddressResponsePayload p: Register(p.ExtAddr, p.NwkAddr); break;
 
-                            foreach (var listener in _deviceAnnounceListeners)
-                                listener.OnNext(node);
-                        }
-                    }
-                    else if (command.Payload is DeviceAnnounceIndicationPayload p3)
-                    {
-                        var node = new Node(this, p3.ExtAddr) with { NwkAddr = p3.NwkAddr };
-                        _ = _nodes.Add(node);
-                    }
-                    else if (command.Payload is GetDevicesResponsePayload p4)
-                    {
-                        foreach (var device in p4.Devices)
-                        {
-                            var node = new Node(this, device.ExtAddr) with { NwkAddr = device.NwkAddr };
-                            _ = _nodes.Add(node);
-                        }
-                    }
-                    else if (command.Payload is ZCL.ICommand zclCommand)
-                    {
-                        foreach (var listener in _zclCommandListeners)
-                            listener.OnNext(zclCommand);
+                        case ZDO.GetNetworkAddressResponsePayload p: Register(p.ExtAddr, p.NwkAddr); break;
+
+                        case ZDO.GetDevicesResponsePayload p:
+                            foreach (var device in p.Devices)
+                                Register(device.ExtAddr, device.NwkAddr);
+                            break;
+
+                        case ZCL.ICommand zclCommand:
+                            foreach (var listener in _zclCommandListeners.ToArray())
+                                listener.OnNext(zclCommand);
+                            break;
+
+                        default: /* ignore */ break;
                     }
 
                     if (stoppingToken.IsCancellationRequested)
@@ -253,8 +264,22 @@ namespace Lsquared.SmartHome.Zigbee
             }
             catch (Exception ex)
             {
+                // TODO log error
                 _ = ex;
+
+                _stoppingCts.Cancel();
             }
+        }
+
+        private void Register(MAC.Address extAddr, NWK.Address nwkAddr)
+        {
+            if (nwkAddr == NWK.Address.Invalid) return;
+
+            var node = new Node(this, extAddr) with { NwkAddr = nwkAddr };
+            _nodes.Add(node);
+
+            foreach (var listener in _deviceAnnounceListeners.ToArray())
+                listener.OnNext(node);
         }
 
         #region Fields
@@ -268,17 +293,13 @@ namespace Lsquared.SmartHome.Zigbee
         private readonly List<ZCL.ICommandListener> _zclCommandListeners = new();
 
         private readonly NodeCollection _nodes = new NodeCollection();
-        ////private readonly Dictionary<NWK.GroupAddress, string> _groups = new();
 
-        ////private readonly ITransport _transport;
         private readonly IProtocol _protocol;
         private readonly ITransportReader _reader;
         private readonly ITransportWriter _writer;
-        //private readonly Thread _consumerThread;
-        private readonly Task _consumerTask;
-
-        ////private readonly IDisposable _unsubscriberPayloadListener;
-        //private readonly IDisposable _unsubscriberCommandListener;
+        private readonly Lazy<Task> _consumerTask;
+        private readonly Lazy<Task> _produceTask;
+        private readonly BlockingCollection<ReadOnlyMemory<byte>> _writeQueue = new();
 
         private readonly Dictionary<ushort, Func<ZCL.Cluster>> _registeredClusters = new();
 
@@ -293,8 +314,9 @@ namespace Lsquared.SmartHome.Zigbee
 
             public void Dispose()
             {
-                if (_listeners.Contains(_listener))
-                    _listeners.Remove(_listener);
+                lock (_listeners)
+                    if (_listeners.Contains(_listener))
+                        _listeners.Remove(_listener);
             }
 
             private readonly IList<TListener> _listeners;

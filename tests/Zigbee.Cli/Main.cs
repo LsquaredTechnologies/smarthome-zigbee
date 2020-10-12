@@ -8,13 +8,14 @@ var transport = new TransportBuilder()
     .WithAutoDicovery<ZigateSerialPortAutoDiscovery>()
     .Build();
 
-
-
 var protocol = new ZigateProtocol();
 var network = new ZigbeeNetwork(transport, protocol);
 
-network.Extensions.Add(new ZigbeeNodeDiscovery());
+await network.StartAsync();
+
 network.Extensions.Add(new ZigbeeGroupDiscovery());
+network.Extensions.Add(new ZigbeeNodeDiscovery());
+network.Extensions.Add(new ZigbeeServiceDiscovery());
 
 //network.RegisterDefaultClusters();
 //network.RegisterCluster<BasicCluster>(0x0000);
@@ -31,9 +32,6 @@ network.Extensions.Add(new ZigbeeGroupDiscovery());
 //network.RegisterCluster<TemperatureCluster>(0x0402);
 //network.RegisterCluster<PressureCluster>(0x0403);
 //network.RegisterCluster<RelativeHumidityCluster>(0x0405);
-
-await network.SendAndReceiveAsync(new Lsquared.SmartHome.Zigbee.ZDO.Mgmt.GetVersionRequestPayload());
-//await network.SendAndReceiveAsync(new Lsquared.SmartHome.Zigbee.ZDO.GetDevicesRequestPayload());
 
 var invoker = new CommandInvoker(network);
 var @continue = true;

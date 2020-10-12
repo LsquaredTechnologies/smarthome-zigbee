@@ -120,7 +120,7 @@ namespace Lsquared.SmartHome.Zigbee
                 Console.WriteLine("Usage: permit join status");
             }
             else
-                await _network.SendAndReceiveAsync(new ZDO.Mgmt.GetPermitJoinStatusRequestPayload());
+                await _network.SendAndReceiveAsync(new ZDO.Mgmt.GetPermitJoinStatusRequestPayload()).ConfigureAwait(false);
             return true;
         }
 
@@ -136,7 +136,7 @@ namespace Lsquared.SmartHome.Zigbee
                 var nwkAddr = NWK.Address.AllRouters;
                 if (args.Length == 1)
                     nwkAddr = ushort.Parse(args[0], NumberStyles.HexNumber);
-                await _network.SendAndReceiveAsync(new ZDO.Mgmt.PermitJoinRequestPayload(nwkAddr, enable));
+                await _network.SendAndReceiveAsync(new ZDO.Mgmt.PermitJoinRequestPayload(nwkAddr, enable)).ConfigureAwait(false);
             }
             return true;
         }
@@ -151,7 +151,7 @@ namespace Lsquared.SmartHome.Zigbee
                 byte duration = 30;
                 if (args.Length > 1)
                     duration = byte.Parse(args[4], NumberStyles.HexNumber);
-                await _network.SendAndReceiveAsync(new ZDO.Mgmt.PermitJoinRequestPayload(nwkAddr, duration));
+                await _network.SendAndReceiveAsync(new ZDO.Mgmt.PermitJoinRequestPayload(nwkAddr, duration)).ConfigureAwait(false);
             }
             return true;
         }
@@ -169,7 +169,7 @@ namespace Lsquared.SmartHome.Zigbee
                 {
                     NWK.Address nwkAddr = ushort.Parse(args[index++], NumberStyles.HexNumber);
                     var payload = new ZCL.Command<AddGroupRequestPayload>(nwkAddr, 1, 1, new AddGroupRequestPayload(grpAddr, name));
-                    await _network.SendAndReceiveAsync(payload);
+                    await _network.SendAndReceiveAsync(payload).ConfigureAwait(false);
                 }
             }
             return true;
@@ -182,7 +182,7 @@ namespace Lsquared.SmartHome.Zigbee
             else
             {
                 var payload = new ZDO.GetDevicesRequestPayload();
-                await _network.SendAndReceiveAsync(payload);
+                await _network.SendAndReceiveAsync(payload).ConfigureAwait(false);
             }
             return true;
         }
@@ -195,7 +195,7 @@ namespace Lsquared.SmartHome.Zigbee
             {
                 NWK.Address nwkAddr = ushort.Parse(args[0], NumberStyles.HexNumber);
                 var payload = new ZDO.GetActiveEndpointsRequestPayload(nwkAddr);
-                await _network.SendAndReceiveAsync(payload);
+                await _network.SendAndReceiveAsync(payload).ConfigureAwait(false);
             }
             return true;
         }
@@ -208,7 +208,7 @@ namespace Lsquared.SmartHome.Zigbee
             {
                 NWK.Address nwkAddr = ushort.Parse(args[0], NumberStyles.HexNumber);
                 var payload = new ZDO.GetNodeDescriptorRequestPayload(nwkAddr);
-                await _network.SendAndReceiveAsync(payload);
+                await _network.SendAndReceiveAsync(payload).ConfigureAwait(false);
             }
             return true;
         }
@@ -221,7 +221,7 @@ namespace Lsquared.SmartHome.Zigbee
             {
                 NWK.Address nwkAddr = ushort.Parse(args[0], NumberStyles.HexNumber);
                 var payload = new ZDO.GetComplexDescriptorRequestPayload(nwkAddr);
-                await _network.SendAndReceiveAsync(payload);
+                await _network.SendAndReceiveAsync(payload).ConfigureAwait(false);
             }
             return true;
         }
@@ -237,7 +237,7 @@ namespace Lsquared.SmartHome.Zigbee
                 if (args.Length > 1)
                     endpoint = byte.Parse(args[1], NumberStyles.HexNumber);
                 var payload = new ZDO.GetSimpleDescriptorRequestPayload(nwkAddr, endpoint);
-                await _network.SendAndReceiveAsync(payload);
+                await _network.SendAndReceiveAsync(payload).ConfigureAwait(false);
             }
             return true;
         }
@@ -268,7 +268,7 @@ namespace Lsquared.SmartHome.Zigbee
                 var attributeID = ushort.Parse(args[3], NumberStyles.HexNumber);
                 var payload = new ZCL.Command<ZCL.ReadAttributesRequestPayload>(
                     address, 1, endpoint, new ZCL.ReadAttributesRequestPayload(clusterID, attributeID));
-                await _network.SendAndReceiveAsync(payload);
+                await _network.SendAndReceiveAsync(payload).ConfigureAwait(false);
             }
             return true;
         }

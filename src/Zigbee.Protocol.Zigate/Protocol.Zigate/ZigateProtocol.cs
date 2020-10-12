@@ -18,7 +18,7 @@ namespace Lsquared.SmartHome.Zigbee.Protocol.Zigate
 
         public async ValueTask InitializeAsync(INetwork network)
         {
-            var versionResponsePayload = await network.SendAndReceiveAsync<ZDO.Mgmt.GetVersionResponsePayload>(new ZDO.Mgmt.GetVersionRequestPayload());
+            var versionResponsePayload = await network.SendAndReceiveAsync<ZDO.Mgmt.GetVersionResponsePayload>(new ZDO.Mgmt.GetVersionRequestPayload()).ConfigureAwait(false);
             if (versionResponsePayload is not null)
                 ZigateVersion = versionResponsePayload.SdkVersion;
 

@@ -1,34 +1,35 @@
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Lsquared.SmartHome.Zigbee.Extensibility;
 using Lsquared.SmartHome.Zigbee.Protocol;
-using Lsquared.SmartHome.Zigbee.ZDO;
 
 namespace Lsquared.SmartHome.Zigbee
 {
     public sealed class ZigbeeNodeDiscovery : IExtension<ZigbeeNetwork>, IPayloadListener, ZDO.IDeviceListener
     {
-        public IReadOnlyCollection<INode> Nodes =>
-            _nodesByNwkAddr.Values;
-
         async void IExtension<ZigbeeNetwork>.Attach([NotNull] ZigbeeNetwork network)
         {
             _network = network;
-            await StartAsync(network);
+            _payloadUnsub = network.Subscribe((IPayloadListener)this);
+            _deviceUnsub = network.Subscribe((ZDO.IDeviceListener)this);
+            await StartAsync(network).ConfigureAwait(false);
         }
 
-        async void IExtension<ZigbeeNetwork>.Detach([NotNull] ZigbeeNetwork network) =>
-            await StopAsync();
+        async void IExtension<ZigbeeNetwork>.Detach([NotNull] ZigbeeNetwork network)
+        {
+            _deviceUnsub?.Dispose();
+            _payloadUnsub?.Dispose();
+            await StopAsync().ConfigureAwait(false);
+        }
 
         private ValueTask StartAsync([NotNull] ZigbeeNetwork network)
         {
-            ////var taskScheduler = new LimitedConcurrencyLevelTaskScheduler(2);
-            ////var factory = new TaskFactory(taskScheduler);
-            ////var task = factory.StartNew(() => ExecuteAsync(network, _stoppingCts.Token), _stoppingCts.Token);
-            var task = ExecuteAsync(network, _stoppingCts.Token);
+            var task = ExecuteAsync(_stoppingCts.Token);
             if (task.IsCompleted) return new ValueTask(task);
             return default;
         }
@@ -39,22 +40,17 @@ namespace Lsquared.SmartHome.Zigbee
             return default;
         }
 
-        private async Task ExecuteAsync(ZigbeeNetwork network, CancellationToken stoppingToken)
+        private async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            await Task.Yield();
-
-            using var payloadUnsubscriber = network.Subscribe((IPayloadListener)this);
-            using var deviceUnsubscriber = network.Subscribe((ZDO.IDeviceListener)this);
-
-            _commandPayloads.Add(new ZDO.Mgmt.GetRoutingTableRequestPayload(NWK.Address.Coordinator, 0));
-            _commandPayloads.Add(new ZDO.Mgmt.GetNeighborTableRequestPayload(NWK.Address.Coordinator, 0));
-
+            await Task.Delay(1500).ConfigureAwait(false);
             while (!stoppingToken.IsCancellationRequested)
             {
-                if (!_commandPayloads.TryTake(out var requestPayload, 1000))
+                if (!_queue.TryTake(out var nwkAddr, 50))
                     continue;
 
-                await network.SendAsync(requestPayload);
+                await _network!.SendAsync(new ZDO.Mgmt.GetNeighborTableRequestPayload(nwkAddr, 0)).ConfigureAwait(false);
+                _queue.Add(nwkAddr);
+                await Task.Delay(30000).ConfigureAwait(false);
             }
 
             _network = null;
@@ -65,127 +61,88 @@ namespace Lsquared.SmartHome.Zigbee
             var task = payload switch
             {
                 // ZDO: Device Discovery
-                ZDO.DeviceAnnounceIndicationPayload p => HandleAsync(p),
+                ////ZDO.DeviceAnnounceIndicationPayload p => HandleAsync(p),
                 ZDO.GetDevicesResponsePayload p => HandleAsync(p),
                 ZDO.GetNetworkAddressResponsePayload p => HandleAsync(p),
                 ZDO.GetExtendedAddressResponsePayload p => HandleAsync(p),
-                // ZDO: Service Discovery
-                ZDO.GetActiveEndpointsResponsePayload p => HandleAsync(p),
-                ZDO.GetNodeDescriptorResponsePayload p => HandleAsync(p),
-                ZDO.GetPowerDescriptorResponsePayload p => HandleAsync(p),
-                ZDO.GetSimpleDescriptorResponsePayload p => HandleAsync(p),
-                ZDO.GetUserDescriptorResponsePayload p => HandleAsync(p),
                 // ZDO: Management
                 ZDO.Mgmt.GetNeighborTableResponsePayload p => HandleAsync(p),
-                ZDO.Mgmt.GetRoutingTableResponsePayload p => HandleAsync(p),
                 _ => default(ValueTask)
             };
-            await task;
+            await task.ConfigureAwait(false);
         }
 
         void ZDO.IDeviceListener.OnNext(INode node)
         {
-            if (node is Node n) _nodesByNwkAddr.TryAdd(node.NwkAddr, n);
-            _commandPayloads.Add(new ZDO.GetActiveEndpointsRequestPayload(node.NwkAddr));
-            _commandPayloads.Add(new ZDO.GetNodeDescriptorRequestPayload(node.NwkAddr));
-            _commandPayloads.Add(new ZDO.GetPowerDescriptorRequestPayload(node.NwkAddr));
+            _nodesByNwkAddr.TryAdd(node.NwkAddr, node.ExtAddr);
+            _nodesByExtAddr.TryAdd(node.ExtAddr, node.NwkAddr);
         }
 
         private ValueTask HandleAsync(ZDO.GetDevicesResponsePayload payload)
         {
-            _ = payload;
+            foreach (var device in payload.Devices)
+            {
+                _nodesByNwkAddr.TryAdd(device.NwkAddr, device.ExtAddr);
+                _nodesByExtAddr.TryAdd(device.ExtAddr, device.NwkAddr);
+            }
             return default;
         }
 
-        private ValueTask HandleAsync(ZDO.DeviceAnnounceIndicationPayload payload)
-        {
-            _ = payload;
-            ////_network!.RegisterNode(payload.ExtAddr, payload.NwkAddr);
-            return default;
-        }
+        ////private ValueTask HandleAsync(ZDO.DeviceAnnounceIndicationPayload payload)
+        ////{
+        ////    _nodesByNwkAddr.TryAdd(payload.NwkAddr, payload.ExtAddr);
+        ////    _nodesByExtAddr.TryAdd(payload.ExtAddr, payload.NwkAddr);
+        ////    return default;
+        ////}
 
         private async ValueTask HandleAsync(ZDO.Mgmt.GetNeighborTableResponsePayload payload)
         {
             var n = (byte)(payload.StartIndex + payload.NeighborTableEntries.Count);
             if (payload.NeighborTableEntries.Count > 0)
             {
-                //var nwkAddr = payload.NeighborTableEntries[0].NwkAddr;
-                //_commandPayloads.Add(new ZDO.Mgmt.GetNeighborTableRequestPayload(nwkAddr, n));
+                if (payload.StartIndex + payload.NeighborTableEntries.Count < payload.Capacity)
+                    await _network!.SendAsync(new ZDO.Mgmt.GetNeighborTableRequestPayload(payload.SrcNwkAddr, n)).ConfigureAwait(false);
 
                 foreach (var neighbor in payload.NeighborTableEntries)
                 {
-                    var resp = await _network!.SendAndReceiveAsync(new ZDO.GetNetworkAddressRequestPayload(neighbor.ExtAddr, 0, 0));
-                    if (resp is ZDO.GetNetworkAddressResponsePayload p)
-                        if (_network!.Nodes.TryGetValue(p.NwkAddr, out var node) &&
-                            node is IHasNodeDescriptor nd &&
-                            nd.NodeDescriptor.IsEndDevice)
-                            _commandPayloads.Add(new ZDO.Mgmt.GetNeighborTableRequestPayload(node.NwkAddr, 0));
+                    var resp = await _network!.SendAndReceiveAsync(new ZDO.GetNetworkAddressRequestPayload(neighbor.ExtAddr, 0, 0)).ConfigureAwait(false);
+                    if (resp is ZDO.GetNetworkAddressResponsePayload p && p.NwkAddr != NWK.Address.Invalid)
+                    {
+                        if (_nodesByNwkAddr.TryAdd(p.NwkAddr, p.ExtAddr))
+                            _queue.Add(p.NwkAddr);
+                        _nodesByExtAddr.TryAdd(p.ExtAddr, p.NwkAddr);
+                        await _network!.SendAsync(new ZDO.Mgmt.GetNeighborTableRequestPayload(p.NwkAddr, 0)).ConfigureAwait(false);
+                    }
                 }
             }
         }
 
-        private ValueTask HandleAsync(ZDO.Mgmt.GetRoutingTableResponsePayload payload)
+        private ValueTask HandleAsync(ZDO.GetNetworkAddressResponsePayload payload)
         {
-            var n = (byte)(payload.StartIndex + payload.RoutingTableEntries.Count);
-            if (payload.RoutingTableEntries.Count > 0 && payload.Capacity > n)
+            if (payload.NwkAddr != NWK.Address.Invalid)
             {
-                //var nwkAddr = payload.RoutingTableEntries[0].NwkAddr;
-                //_commandPayloads.Add(new ZDO.Mgmt.GetRoutingTableRequestPayload(nwkAddr, n));
+                if (_nodesByNwkAddr.TryAdd(payload.NwkAddr, payload.ExtAddr))
+                    _queue.Add(payload.NwkAddr);
+                _nodesByExtAddr.TryAdd(payload.ExtAddr, payload.NwkAddr);
             }
             return default;
         }
 
-        private ValueTask HandleAsync(ZDO.GetActiveEndpointsResponsePayload payload)
+        private async ValueTask HandleAsync(ZDO.GetExtendedAddressResponsePayload payload)
         {
-            foreach (var endpoint in payload.ActiveEndpoints)
-                // TODO how to register endpoint in node?
-                _commandPayloads.Add(new ZDO.GetSimpleDescriptorRequestPayload(payload.NwkAddr, endpoint));
-            return default;
-        }
-
-        private ValueTask HandleAsync(ZDO.GetNodeDescriptorResponsePayload payload)
-        {
-            if (_nodesByNwkAddr.TryGetValue(payload.NwkAddr, out Node node))
-                node.NodeDescriptor = payload.NodeDescriptor;
-            return default;
-        }
-
-        private ValueTask HandleAsync(ZDO.GetPowerDescriptorResponsePayload payload)
-        {
-            if (_nodesByNwkAddr.TryGetValue(payload.NwkAddr, out Node node))
-                node.PowerDescriptor = payload.PowerDescriptor;
-            return default;
-        }
-
-        private ValueTask HandleAsync(ZDO.GetNetworkAddressResponsePayload payload)
-        {
-            _ = payload;
-            return default;
-        }
-
-        private ValueTask HandleAsync(ZDO.GetExtendedAddressResponsePayload payload)
-        {
-            _ = payload;
-            return default;
-        }
-
-        private ValueTask HandleAsync(ZDO.GetSimpleDescriptorResponsePayload payload)
-        {
-            if (_nodesByNwkAddr.TryGetValue(payload.NwkAddr, out Node node) && node.Endpoints.Contains(payload.SimpleDescriptor.Endpoint))
-                ((APP.NodeEndpoint)node.Endpoints[payload.SimpleDescriptor.Endpoint]).Register(payload.SimpleDescriptor);
-            return default;
-        }
-
-        private ValueTask HandleAsync(ZDO.GetUserDescriptorResponsePayload payload)
-        {
-            if (_nodesByNwkAddr.TryGetValue(payload.NwkAddr, out Node node))
-                node.UserDescriptor = payload.UserDescriptor;
-            return default;
+            if (_nodesByNwkAddr.TryAdd(payload.NwkAddr, payload.ExtAddr))
+                _queue.Add(payload.NwkAddr);
+            _nodesByExtAddr.TryAdd(payload.ExtAddr, payload.NwkAddr);
+            if (payload.NwkAddr == NWK.Address.Coordinator)
+                await _network!.SendAsync(new ZDO.Mgmt.GetNeighborTableRequestPayload(NWK.Address.Coordinator, 0)).ConfigureAwait(false);
         }
 
         private readonly CancellationTokenSource _stoppingCts = new();
-        private readonly BlockingCollection<ICommandPayload> _commandPayloads = new();
-        private readonly Dictionary<NWK.Address, Node> _nodesByNwkAddr = new();
+        private readonly Dictionary<NWK.Address, MAC.Address> _nodesByNwkAddr = new();
+        private readonly Dictionary<MAC.Address, NWK.Address> _nodesByExtAddr = new();
+        private readonly BlockingCollection<NWK.Address> _queue = new();
         private ZigbeeNetwork? _network;
+        private IDisposable? _payloadUnsub;
+        private IDisposable? _deviceUnsub;
     }
 }

@@ -7,13 +7,13 @@ namespace Lsquared.SmartHome.Zigbee
     {
         public int Count => _nodesByExtAddr.Count;
 
-        public bool Add(INode node)
+        public void Add(INode node)
         {
             if (_nodesByExtAddr.ContainsKey(node.ExtAddr))
                 _nodesByNwkAddr.Remove(node.NwkAddr);
 
             _nodesByExtAddr.TryAdd(node.ExtAddr, node);
-            return _nodesByNwkAddr.TryAdd(node.NwkAddr, node);
+            _nodesByNwkAddr.TryAdd(node.NwkAddr, node);
         }
 
         public bool TryGetValue(NWK.Address nwkAddr, out INode? node) =>

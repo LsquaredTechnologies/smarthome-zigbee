@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
@@ -16,12 +17,16 @@ namespace Lsquared.SmartHome.Zigbee
         void IExtension<ZigbeeNetwork>.Attach([NotNull] ZigbeeNetwork network)
         {
             _network = network;
-            network.Subscribe((IPayloadListener)this);
-            network.Subscribe((ZCL.ICommandListener)this);
+            _payloadUnsub = network.Subscribe((IPayloadListener)this);
+            _zclCommandUnsub = network.Subscribe((ZCL.ICommandListener)this);
         }
 
-        void IExtension<ZigbeeNetwork>.Detach([NotNull] ZigbeeNetwork network) =>
+        void IExtension<ZigbeeNetwork>.Detach([NotNull] ZigbeeNetwork network)
+        {
+            _payloadUnsub?.Dispose();
+            _zclCommandUnsub?.Dispose();
             _network = null;
+        }
 
         async void IPayloadListener.OnNext(ICommandPayload payload)
         {
@@ -31,7 +36,7 @@ namespace Lsquared.SmartHome.Zigbee
                 ZCL.Command<GetGroupMembershipResponsePayload> c => HandleAsync(c),
                 _ => default(ValueTask)
             };
-            await task;
+            await task.ConfigureAwait(false);
         }
 
         async void ZCL.ICommandListener.OnNext(ZCL.ICommand command)
@@ -41,14 +46,14 @@ namespace Lsquared.SmartHome.Zigbee
                 ZCL.Command<GetGroupMembershipResponsePayload> c => HandleAsync(c),
                 _ => default(ValueTask)
             };
-            await task;
+            await task.ConfigureAwait(false);
         }
 
         private async ValueTask HandleAsync(ZDO.GetActiveEndpointsResponsePayload payload)
         {
             var nwkAddr = payload.NwkAddr;
             foreach (var endpoint in payload.ActiveEndpoints)
-                await _network!.SendAsync(new ZCL.Command<GetGroupMembershipRequestPayload>(nwkAddr, 1, endpoint, new GetGroupMembershipRequestPayload()));
+                await _network!.SendAsync(new ZCL.Command<GetGroupMembershipRequestPayload>(nwkAddr, 1, endpoint, new GetGroupMembershipRequestPayload())).ConfigureAwait(false);
         }
 
         private ValueTask HandleAsync(ZCL.Command<GetGroupMembershipResponsePayload> payload)
@@ -58,8 +63,9 @@ namespace Lsquared.SmartHome.Zigbee
             return default;
         }
 
-        private readonly CancellationTokenSource _stoppingCts = new();
         private readonly SortedSet<NWK.GroupAddress> _groups = new();
         private ZigbeeNetwork? _network;
+        private IDisposable? _payloadUnsub;
+        private IDisposable? _zclCommandUnsub;
     }
 }
